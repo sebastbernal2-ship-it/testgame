@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Valentine Adventure</title>
+  <style>
+    body {
+      margin: 0;
+      background: #202030;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #fff;
+      font-family: sans-serif;
+    }
+    #game-container {
+      border: 4px solid #fff;
+      image-rendering: pixelated;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="640" height="480"></canvas>
+
+  <script>
+    // --- Basic setup ---
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const keys = {};
+    window.addEventListener('keydown', e => keys[e.key] = true);
+    window.addEventListener('keyup',   e => keys[e.key] = false);
+
+    // --- Simple player square for now ---
+    const player = {
+      x: 300,
+      y: 220,
+      size: 32,
+      speed: 3
+    };
+
+    function update() {
+      if (keys['ArrowLeft'] || keys['a'])  player.x -= player.speed;
+      if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
+      if (keys['ArrowUp'] || keys['w'])    player.y -= player.speed;
+      if (keys['ArrowDown'] || keys['s'])  player.y += player.speed;
+
+      // Keep player inside canvas
+      if (player.x < 0) player.x = 0;
+      if (player.y < 0) player.y = 0;
+      if (player.x > canvas.width - player.size) player.x = canvas.width - player.size;
+      if (player.y > canvas.height - player.size) player.y = canvas.height - player.size;
+    }
+
+    function draw() {
+      // Background
+      ctx.fillStyle = '#1b2033';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Simple ground stripe to hint at world
+      ctx.fillStyle = '#2e8b57';
+      ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
+
+      // Player (placeholder for now)
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(player.x, player.y, player.size, player.size);
+
+      // Simple text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '16px sans-serif';
+      ctx.fillText('Move with WASD / Arrow Keys', 20, 30);
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+  </script>
+</body>
+</html>
