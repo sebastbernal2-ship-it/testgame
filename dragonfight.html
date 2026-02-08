@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Two-Stage Dragon Fight Test</title>
+  <style>
+    body {
+      margin: 0;
+      background: #202030;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #fff;
+      font-family: sans-serif;
+    }
+    #game {
+      border: 4px solid #fff;
+      image-rendering: pixelated;
+      background: #000814;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="640" height="480"></canvas>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+
+    const keys = {};
+    let state = "stage1"; // stage1, stage2, win, lose
+    let lastStage = "stage1";
+
+    function rectsOverlap(a, b) {
+      return (
+        a.x < b.x + b.w &&
+        a.x + a.w > b.x &&
+        a.y < b.y + b.h &&
+        a.y + a.h > b.y
+      );
+    }
+
+    // ---------- SHARED PLAYER STRUCTS ----------
+    const player1 = { x: WIDTH/2-12, y: HEIGHT-40, w: 24, h: 24, speed: 3, hp: 3 };
+    const player2 = { x: 80, y: HEIGHT-64, w: 24, h: 32, vx: 0, vy: 0, speed: 2.5, onGround: false, hp: 3 };
+
+    // ---------- STAGE 1 (SKY SHOOTER) ----------
+    const dragon1 = {
+      x: WIDTH/2-80,
+      y: 40,
+      w: 160,
+      h: 60,
+      hp: 12,
+      maxHp: 12,
+      phase: "rain",
+      phaseTimer: 0,
+      hitFlash: 0
+    };
+
+    const bullets = [];   // player hearts
+    const shots = [];     // dragon fireballs
+    const warnings = [];  // warning circles
+    let shotCooldown = 0;
+    let stage1Done = false;
+
+    // ---------- STAGE 2 (GROUND BOXING) ----------
+    const dragon2 = {
+      x: WIDTH - 160,
+      y: HEIGHT - 104,
+      w: 120,
+      h: 64,
+      hp: 5,
+      maxHp: 5,
+      phase: "approach", // approach, swipe
+      phaseTimer: 0,
+      hitFlash: 0,
+      dir: -1 // facing left
+    };
+    let punchCooldown = 0;
+
+    const star = { x: WIDTH/2-10, y: HEIGHT/2-40, w: 20, h: 20 };
+
+    // ---------- INIT ----------
+    function initStage1() {
+      player1.x = WIDTH/2 - 12;
+      player1.y = HEIGHT - 40;
+      player1.hp = 3;
+
+      dragon1.x = WIDTH/2 - 80;
+      dragon1.y = 40;
+      dragon1.hp = dragon1.maxHp;
+      dragon1.phase = "rain";
+      dragon1.phaseTimer = 0;
+      dragon1.hitFlash = 0;
+
+      bullets.length = 0;
+      shots.length = 0;
+      warnings.length = 0;
+      shotCooldown = 0;
+      stage1Done = false;
+      lastStage = "stage1";
+    }
+
+    function initStage2() {
+      player2.x = 80;
+      player2.y = HEIGHT - 64;
+      player2.vx = 0;
+      player2.vy = 0;
+      player2.hp = 3;
+      player2.onGround = false;
+
+      dragon2.x = WIDTH - 160;
+      dragon2.y = HEIGHT - 104;
+      dragon2.hp = dragon2.maxHp;
+      dragon2.phase = "approach";
+      dragon2.phaseTimer = 0;
+      dragon2.hitFlash = 0;
+      dragon2.dir = -1;
+
+      punchCooldown = 0;
+      lastStage = "stage2";
+    }
+
+    // ---------- STAGE 1 UPDATE/DRAW ----------
+    function updateStage1() {
+      // Player movement
+      let dx = 0;
+      if (keys['ArrowLeft'] || keys['a']) dx -= 1;
+      if (keys['ArrowRight'] || keys['d']) dx += 1;
+      player1.x += dx * player1.speed;
+      if (player1.x < 20) player1.x = 20;
+      if (player1.x + player1.w > WIDTH - 20) player1.x = WIDTH - 20 - player1.w;
+
+      // Shooting (higher cooldown)
+      if (shotCooldown > 0) shotCooldown--;
+      if ((keys['k'] || keys['K'] || keys[' ']) && shotCooldown === 0 && !stage1Done) {
+        bullets.push({
+          x: player1.x + player1.w / 2 - 3,
+          y: player1.y,
+          w: 6,
+          h: 10,
+          vy: -4
+        });
+        shotCooldown = 25; // slow fire
+      }
+
+      // move bullets & remove offscreen
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        bullets[i].y += bullets[i].vy;
+        if (bullets[i].y + bullets[i].h < 0) {
+          bullets.splice(i, 1);
+        }
+      }
+
+      // Bullet-Dragon collisions
+      const dBox = { x: dragon1.x, y: dragon1.y, w: dragon1.w, h: dragon1.h };
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        if (!stage1Done && rectsOverlap(bullets[i], dBox)) {
+          dragon1.hp = Math.max(0, dragon1.hp - 1);
+          dragon1.hitFlash = 6;
+          bullets.splice(i, 1);
+        }
+      }
+      if (dragon1.hitFlash > 0) dragon1.hitFlash--;
+
+      // Dragon patterns
+      if (!stage1Done && dragon1.hp > 0) {
+        dragon1.phaseTimer++;
+        if (dragon1.phase === "rain") {
+          if (dragon1.phaseTimer === 1) {
+            warnings.length = 0;
+            const cols = [];
+            while (cols.length < 4) {
+              const c = Math.floor(Math.random() * 8);
+              if (!cols.includes(c)) cols.push(c);
+            }
+            for (const c of cols) {
+              const cx = 60 + c * 60;
+              warnings.push({ x: cx, y: HEIGHT - 60, r: 10, timer: 40 });
+            }
+          }
+          if (dragon1.phaseTimer === 40) {
+            for (const w of warnings) {
+              shots.push({
+                x: w.x,
+                y: dragon1.y + dragon1.h,
+                r: 8,
+                vx: 0,
+                vy: 2.5
+              });
+            }
+            warnings.length = 0;
+          }
+          if (dragon1.phaseTimer > 160) {
+            dragon1.phase = "fan";
+            dragon1.phaseTimer = 0;
+          }
+        } else if (dragon1.phase === "fan") {
+          if (dragon1.phaseTimer === 1 || dragon1.phaseTimer === 40 || dragon1.phaseTimer === 80) {
+            const cx = dragon1.x + dragon1.w / 2;
+            const cy = dragon1.y + dragon1.h;
+            const pattern = [
+              { vx: -1.5, vy: 2.4 },
+              { vx: -0.7, vy: 2.8 },
+              { vx:  0.7, vy: 2.8 },
+              { vx:  1.5, vy: 2.4 }
+            ];
+            for (const dir of pattern) {
+              shots.push({ x: cx, y: cy, r: 7, vx: dir.vx, vy: dir.vy });
+            }
+          }
+          if (dragon1.phaseTimer > 140) {
+            dragon1.phase = "rain";
+            dragon1.phaseTimer = 0;
+          }
+        }
+      }
+
+      // Update shots
+      for (let i = shots.length - 1; i >= 0; i--) {
+        shots[i].x += shots[i].vx;
+        shots[i].y += shots[i].vy;
+        if (shots[i].y - shots[i].r > HEIGHT) shots.splice(i, 1);
+      }
+
+      // Shot-Player collision
+      const pBox = { x: player1.x, y: player1.y, w: player1.w, h: player1.h };
+      for (let i = shots.length - 1; i >= 0; i--) {
+        const s = shots[i];
+        const sb = { x: s.x - s.r, y: s.y - s.r, w: s.r * 2, h: s.r * 2 };
+        if (!stage1Done && rectsOverlap(sb, pBox)) {
+          player1.hp = Math.max(0, player1.hp - 1);
+          shots.splice(i, 1);
+        }
+      }
+
+      if (!stage1Done && dragon1.hp <= 0) {
+        stage1Done = true;
+        setTimeout(() => {
+          initStage2();
+          state = "stage2";
+        }, 800);
+      }
+
+      if (player1.hp <= 0 && state === "stage1") {
+        lastStage = "stage1";
+        state = "lose";
+      }
+    }
+
+    function drawStage1() {
+      ctx.fillStyle = '#000814';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 60; i++) {
+        const sx = (i * 37) % WIDTH;
+        const sy = (i * 53) % (HEIGHT - 100);
+        ctx.fillRect(sx, sy, 2, 2);
+      }
+
+      ctx.fillStyle = '#0077b6';
+      ctx.beginPath();
+      ctx.arc(80, 80, 30, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      if (dragon1.hitFlash > 0) ctx.fillStyle = '#ffffff';
+      else ctx.fillStyle = '#ff006e';
+      ctx.fillRect(dragon1.x, dragon1.y, dragon1.w, dragon1.h);
+      ctx.fillRect(dragon1.x + dragon1.w - 40, dragon1.y - 20, 40, 40);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(dragon1.x + dragon1.w - 26, dragon1.y - 8, 10, 10);
+      ctx.fillStyle = (dragon1.phase === 'rain') ? '#f9c74f' : '#ffe66d';
+      ctx.fillRect(dragon1.x + 30, dragon1.y + 20, 20, 20);
+      ctx.restore();
+
+      for (const w of warnings) {
+        ctx.strokeStyle = '#ffdd00';
+        ctx.beginPath();
+        ctx.arc(w.x, w.y, w.r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      for (const s of shots) {
+        ctx.fillStyle = '#ff9f1c';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(player1.x, player1.y, player1.w, player1.h);
+
+      ctx.fillStyle = '#ff4b4b';
+      bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
+
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, 0, WIDTH, 40);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Stage 1: Move A/D or arrows | Shoot K or Space | Avoid fireballs.', 10, 20);
+      ctx.fillText(`HP: ${player1.hp}`, 10, 36);
+
+      ctx.fillText('Dragon (Stage 1)', WIDTH - 200, 20);
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeRect(WIDTH - 200, 26, 140, 10);
+      ctx.fillStyle = '#ff006e';
+      ctx.fillRect(WIDTH - 200, 26, 140 * (dragon1.hp / dragon1.maxHp), 10);
+    }
+
+    // ---------- STAGE 2 UPDATE/DRAW ----------
+    function updateStage2() {
+      const p = player2;
+      const d = dragon2;
+
+      // horizontal move
+      p.vx = 0;
+      if (keys['ArrowLeft'] || keys['a']) p.vx = -p.speed;
+      if (keys['ArrowRight'] || keys['d']) p.vx = p.speed;
+      p.x += p.vx;
+      if (p.x < 20) p.x = 20;
+      if (p.x + p.w > WIDTH - 20) p.x = WIDTH - 20 - p.w;
+
+      // gravity
+      p.vy += 0.3;
+      p.y += p.vy;
+      if (p.y + p.h > HEIGHT - 40) {
+        p.y = HEIGHT - 40 - p.h;
+        p.vy = 0;
+        p.onGround = true;
+      } else p.onGround = false;
+
+      if ((keys['w'] || keys['ArrowUp'] || keys[' ']) && p.onGround) {
+        p.vy = -5;
+        p.onGround = false;
+      }
+
+      if (punchCooldown > 0) punchCooldown--;
+
+      // punch
+      if ((keys['j'] || keys['J']) && punchCooldown === 0) {
+        punchCooldown = 20;
+        const punchBox = { x: p.x + p.w, y: p.y, w: 20, h: p.h };
+        const dBox = { x: d.x, y: d.y, w: d.w, h: d.h };
+        if (rectsOverlap(punchBox, dBox)) {
+          d.hp = Math.max(0, d.hp - 1);
+          d.hitFlash = 6;
+        }
+      }
+
+      if (d.hitFlash > 0) d.hitFlash--;
+
+      d.phaseTimer++;
+
+      const pBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+      const dBox = { x: d.x, y: d.y, w: d.w, h: d.h };
+      const dist = (d.x) - (p.x + p.w);
+
+      if (d.hp > 0) {
+        if (d.phase === "approach") {
+          if (dist > 60) d.x -= 1.0;
+          if (d.phaseTimer > 90 || dist <= 60) {
+            d.phase = "swipe";
+            d.phaseTimer = 0;
+          }
+        } else if (d.phase === "swipe") {
+          if (d.phaseTimer === 40) {
+            const swipeBox = { x: d.x - 40, y: d.y, w: 40, h: d.h };
+            if (rectsOverlap(pBox, swipeBox)) {
+              player2.hp = Math.max(0, player2.hp - 1);
+            }
+          }
+          if (d.phaseTimer > 80) {
+            d.phase = "approach";
+            d.phaseTimer = 0;
+          }
+        }
+      }
+
+      if (d.hp <= 0 && state === "stage2") {
+        state = "win";
+      }
+      if (player2.hp <= 0 && state === "stage2") {
+        lastStage = "stage2";
+        state = "lose";
+      }
+    }
+
+    function drawStage2() {
+      ctx.fillStyle = '#1b1f33';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      ctx.fillStyle = '#5c677d';
+      ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
+
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(player2.x, player2.y, player2.w, player2.h);
+
+      const d = dragon2;
+      ctx.save();
+      if (d.hitFlash > 0) ctx.fillStyle = '#ffffff';
+      else ctx.fillStyle = '#ff006e';
+      ctx.fillRect(d.x, d.y, d.w, d.h);
+      ctx.fillRect(d.x + d.w - 40, d.y - 20, 40, 40);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(d.x + d.w - 26, d.y - 8, 10, 10);
+      ctx.restore();
+
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, 0, WIDTH, 40);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Stage 2: Move A/D or arrows | Jump W/Up/Space | Punch J up close.', 10, 20);
+      ctx.fillText(`HP: ${player2.hp}`, 10, 36);
+
+      ctx.fillText('Dragon (Stage 2)', WIDTH - 200, 20);
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeRect(WIDTH - 200, 26, 140, 10);
+      ctx.fillStyle = '#ff006e';
+      ctx.fillRect(WIDTH - 200, 26, 140 * (dragon2.hp / dragon2.maxHp), 10);
+    }
+
+    // ---------- MAIN LOOP ----------
+    window.addEventListener('keydown', e => {
+      keys[e.key] = true;
+      if (e.key === 'r' || e.key === 'R') {
+        initStage1();
+        state = "stage1";
+      }
+    });
+    window.addEventListener('keyup', e => {
+      keys[e.key] = false;
+    });
+
+    function update() {
+      if (state === "stage1") updateStage1();
+      else if (state === "stage2") updateStage2();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+      if (state === "stage1") drawStage1();
+      else if (state === "stage2") drawStage2();
+      else if (state === "win") {
+        drawStage2();
+        ctx.fillStyle = '#ffe66d';
+        const sx = star.x + star.w / 2;
+        const sy = star.y + star.h / 2;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - 8);
+        ctx.lineTo(sx + 4, sy);
+        ctx.lineTo(sx + 12, sy);
+        ctx.lineTo(sx + 6, sy + 6);
+        ctx.lineTo(sx + 8, sy + 14);
+        ctx.lineTo(sx, sy + 10);
+        ctx.lineTo(sx - 8, sy + 14);
+        ctx.lineTo(sx - 6, sy + 6);
+        ctx.lineTo(sx - 12, sy);
+        ctx.lineTo(sx - 4, sy);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#000000aa';
+        ctx.fillRect(0, HEIGHT/2 - 30, WIDTH, 60);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '16px sans-serif';
+        ctx.fillText('You defeated the dragon and claimed the Wish Star! (Press R to replay.)', 60, HEIGHT/2);
+      } else if (state === "lose") {
+        if (lastStage === "stage1") drawStage1();
+        else drawStage2();
+        ctx.fillStyle = '#000000aa';
+        ctx.fillRect(0, HEIGHT/2 - 30, WIDTH, 60);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '16px sans-serif';
+        ctx.fillText('You were defeated. Press R to retry.', 180, HEIGHT/2);
+      }
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    initStage1();
+    loop();
+  </script>
+</body>
+</html>

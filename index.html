@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Valentine Adventure - Level 1</title>
+  <title>Valentine Adventure - Levels 1â€“5</title>
   <style>
     body {
       margin: 0;
@@ -23,26 +23,25 @@
 </head>
 <body>
   <canvas id="game" width="640" height="480"></canvas>
-
   <script>
-    console.log("Game script running");
-
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
-
     const WIDTH = canvas.width;
     const HEIGHT = canvas.height;
-
     const TILE = 32;
-    const COLS = WIDTH / TILE;   // 20
-    const ROWS = HEIGHT / TILE;  // 15
+    const COLS = WIDTH / TILE;
+    const ROWS = HEIGHT / TILE;
 
-    // Global state
-    let state = "lily"; // "lily" or "jungle"
+    // lily, jungle = Level 1
+    // house2, hub2, taco, sushi, dessert = Level 2
+    // house3, undersea = Level 3
+    // ship_build, ship_launch = Level 4
+    // moon_boss, wish_scene = Level 5
 
+    let state = "lily";
     const keys = {};
 
-    // ---------- LILY LEVEL DATA ----------
+    // ---------- LEVEL 1: LILY ----------
     const TILE_GRASS   = 0;
     const TILE_WATER   = 1;
     const TILE_LILYPAD = 2;
@@ -60,7 +59,6 @@
     };
 
     function initLily() {
-      // Base grass
       lily.map = [];
       for (let y = 0; y < ROWS; y++) {
         lily.map[y] = [];
@@ -68,31 +66,26 @@
           lily.map[y][x] = TILE_GRASS;
         }
       }
-
-      // Pond
+      // water
       for (let y = 7; y <= 11; y++) {
         for (let x = 5; x <= 14; x++) {
           lily.map[y][x] = TILE_WATER;
         }
       }
-
-      // Island
+      // lily pads
       for (let x = 8; x <= 11; x++) {
         lily.map[8][x]  = TILE_LILYPAD;
         lily.map[9][x]  = TILE_LILYPAD;
         lily.map[10][x] = TILE_LILYPAD;
       }
-
-      // House
+      // house
       lily.map[7][9]  = TILE_HOUSE;
       lily.map[7][10] = TILE_HOUSE;
-
-      // Bridge
+      // vertical path
       for (let y = 6; y <= 10; y++) {
         lily.map[y][9] = TILE_LILYPAD;
       }
-
-      // Wild lilies on grass
+      // wild lilies
       const wildLilyPositions = [
         [3, 8], [5, 5], [6, 12],
         [15, 6], [16, 10], [13, 13]
@@ -100,8 +93,7 @@
       for (const [x, y] of wildLilyPositions) {
         lily.map[y][x] = TILE_LILY;
       }
-
-      // Targets around house
+      // targets
       const targetPositions = [
         [8, 9], [9, 9], [10, 9], [11, 9],
         [8, 10], [11, 10]
@@ -109,13 +101,11 @@
       lily.totalTargets = targetPositions.length;
       lily.liliesPlaced = 0;
       lily.liliesCollected = 0;
-
       for (const [x, y] of targetPositions) {
         if (lily.map[y][x] === TILE_LILYPAD || lily.map[y][x] === TILE_GRASS) {
           lily.map[y][x] = TILE_TARGET;
         }
       }
-
       lily.player.x = 7;
       lily.player.y = 10;
       lily.bird.spawned = false;
@@ -147,7 +137,7 @@
       const y = lily.player.y;
       const tile = lily.map[y][x];
 
-      // Bird dialog / transition
+      // talk to bird to go to jungle
       if (lily.bird.spawned && lilyIsAdjacentToBird()) {
         if (!lily.bird.talking) {
           lily.bird.talking = true;
@@ -157,13 +147,12 @@
         }
         return;
       }
-
       if (lily.bird.talking) {
         lily.bird.talking = false;
         return;
       }
 
-      // Lily pickup / placement
+      // collect/place lilies
       if (tile === TILE_LILY) {
         lily.liliesCollected += 1;
         lily.map[y][x] = TILE_GRASS;
@@ -172,48 +161,35 @@
         lily.liliesPlaced += 1;
         lily.map[y][x] = TILE_LILY;
       }
-
-      // Spawn bird
+      // spawn bird when done
       if (!lily.bird.spawned && lily.liliesPlaced === lily.totalTargets) {
         lily.bird.spawned = true;
       }
     }
 
-    function updateLily() {
-      // Movement is handled per keypress in keydown to keep it tile-by-tile
-    }
+    function updateLily() {}
 
     function drawLily() {
       for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
           const tile = lily.map[y][x];
-          if (tile === TILE_GRASS) {
-            ctx.fillStyle = '#2f9e44';
-          } else if (tile === TILE_WATER) {
-            ctx.fillStyle = '#1864ab';
-          } else if (tile === TILE_LILYPAD) {
-            ctx.fillStyle = '#38b000';
-          } else if (tile === TILE_HOUSE) {
-            ctx.fillStyle = '#d4a373';
-          } else if (tile === TILE_LILY) {
-            ctx.fillStyle = '#ffb3c6';
-          } else if (tile === TILE_TARGET) {
-            ctx.fillStyle = '#9ef01a';
-          }
+          if (tile === TILE_GRASS) ctx.fillStyle = '#2f9e44';
+          else if (tile === TILE_WATER) ctx.fillStyle = '#1864ab';
+          else if (tile === TILE_LILYPAD) ctx.fillStyle = '#38b000';
+          else if (tile === TILE_HOUSE) ctx.fillStyle = '#d4a373';
+          else if (tile === TILE_LILY) ctx.fillStyle = '#ffb3c6';
+          else if (tile === TILE_TARGET) ctx.fillStyle = '#9ef01a';
           ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
         }
       }
-
-      // Player
+      // player
       ctx.fillStyle = '#ffd35a';
       ctx.fillRect(lily.player.x * TILE, lily.player.y * TILE, TILE, TILE);
-
-      // Bird
+      // bird
       if (lily.bird.spawned) {
         ctx.fillStyle = '#ff4b4b';
         ctx.fillRect(lily.bird.x * TILE, lily.bird.y * TILE, TILE, TILE);
       }
-
       // HUD
       ctx.fillStyle = '#000000aa';
       ctx.fillRect(0, 0, WIDTH, 50);
@@ -221,31 +197,26 @@
       ctx.font = '14px sans-serif';
       ctx.fillText('Move: WASD / arrows | Interact: E / Space / Enter', 10, 18);
       ctx.fillText(`Lilies in bag: ${lily.liliesCollected} | Spots filled: ${lily.liliesPlaced}/${lily.totalTargets}`, 10, 36);
-
       if (lily.bird.spawned && lilyIsAdjacentToBird() && !lily.bird.talking) {
         ctx.fillText('Press E / Space / Enter to talk to the bird', 10, HEIGHT - 10);
       }
-
       if (lily.bird.talking) {
         const boxWidth = WIDTH - 40;
         const boxHeight = 70;
         const boxX = 20;
         const boxY = HEIGHT - boxHeight - 20;
-
         ctx.fillStyle = '#000000dd';
         ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
         ctx.strokeStyle = '#ffffff';
         ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
-
         ctx.fillStyle = '#ffffff';
-        ctx.font = '14px sans-serif';
         ctx.fillText('Angry Bird: "Those monkeys stole my egg and hid it up in the jungle!"', boxX + 10, boxY + 24);
         ctx.fillText('Angry Bird: "Will you climb up and get it back for me?"', boxX + 10, boxY + 44);
         ctx.fillText('(Press E / Space / Enter to begin the climb)', boxX + 10, boxY + 62);
       }
     }
 
-    // ---------- JUNGLE LEVEL DATA ----------
+    // ---------- LEVEL 1: JUNGLE ----------
     const jungle = {
       player: { x: 80, y: 400, vx: 0, vy: 0, w: 24, h: 32, onGround: false },
       platforms: [],
@@ -254,6 +225,7 @@
       moveSpeed: 2.2,
       jumpStrength: 6.0,
       hasEgg: false,
+      eggCollected: false,
       nest: { x: 520, y: 80, w: 40, h: 20 }
     };
 
@@ -269,6 +241,7 @@
       ];
       jungle.coconuts = [];
       jungle.hasEgg = false;
+      jungle.eggCollected = false;
       jungle.nest = { x: 520, y: 80, w: 40, h: 20 };
       coconutTimer = 0;
     }
@@ -288,19 +261,18 @@
     }
 
     let coconutTimer = 0;
-
     function updateJungle() {
       const p = jungle.player;
 
-      // Horizontal movement from keys
+      // horizontal
       p.vx = 0;
       if (keys['ArrowLeft'] || keys['a'])  p.vx = -jungle.moveSpeed;
       if (keys['ArrowRight'] || keys['d']) p.vx =  jungle.moveSpeed;
 
-      // Gravity
+      // gravity
       p.vy += jungle.gravity;
 
-      // Integrate X
+      // move x
       p.x += p.vx;
       for (const plat of jungle.platforms) {
         const playerBox = { x: p.x, y: p.y, w: p.w, h: p.h };
@@ -311,7 +283,7 @@
         }
       }
 
-      // Integrate Y
+      // move y
       p.y += p.vy;
       p.onGround = false;
       for (const plat of jungle.platforms) {
@@ -328,48 +300,40 @@
         }
       }
 
-      // Bounds
+      // bounds
       if (p.y + p.h > HEIGHT) {
-        p.x = 80;
-        p.y = 400;
-        p.vx = 0;
-        p.vy = 0;
+        p.x = 80; p.y = 400; p.vx = 0; p.vy = 0;
       }
       if (p.y < 0) p.y = 0;
 
-      // Coconut spawning
+      // coconuts
       coconutTimer += 1;
       if (coconutTimer > 120) {
         coconutTimer = 0;
         jungle.coconuts.push({
-          x: Math.random()*(WIDTH - 20)+10,
+          x: Math.random() * (WIDTH - 20) + 10,
           y: -10,
           vx: 0,
           vy: 2,
           r: 8
         });
       }
-
-      // Update coconuts
       for (const c of jungle.coconuts) {
         c.y += c.vy;
       }
       jungle.coconuts = jungle.coconuts.filter(c => c.y + c.r < HEIGHT);
 
-      // Coconut collision
+      // hit by coconut
       for (const c of jungle.coconuts) {
         const coconutBox = { x: c.x - c.r, y: c.y - c.r, w: c.r * 2, h: c.r * 2 };
         const playerBox = { x: p.x, y: p.y, w: p.w, h: p.h };
         if (rectsOverlap(playerBox, coconutBox)) {
-          p.x = 80;
-          p.y = 400;
-          p.vx = 0;
-          p.vy = 0;
+          p.x = 80; p.y = 400; p.vx = 0; p.vy = 0;
           break;
         }
       }
 
-      // Nest check
+      // egg area
       const playerBox = { x: p.x, y: p.y, w: p.w, h: p.h };
       if (rectsOverlap(playerBox, jungle.nest)) {
         jungle.hasEgg = true;
@@ -377,35 +341,39 @@
     }
 
     function jungleInteract() {
-      // no special use yet
+      if (jungle.hasEgg && !jungle.eggCollected) {
+        jungle.eggCollected = true;
+        initHouse2();
+        state = "house2";
+      }
     }
 
     function drawJungle() {
       ctx.fillStyle = '#0b1321';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-      // Tree trunk
+      // trunk
       ctx.fillStyle = '#5a3c1a';
       ctx.fillRect(300, 0, 40, HEIGHT);
 
-      // Platforms
+      // platforms
       ctx.fillStyle = '#3b3b2b';
       for (const plat of jungle.platforms) {
         ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
       }
 
-      // Nest
+      // nest
       ctx.fillStyle = '#8b5a2b';
       ctx.fillRect(jungle.nest.x, jungle.nest.y, jungle.nest.w, jungle.nest.h);
       ctx.fillStyle = '#fce38a';
       ctx.fillRect(jungle.nest.x + 10, jungle.nest.y - 12, 20, 12);
 
-      // Player
+      // player
       const p = jungle.player;
       ctx.fillStyle = '#ffd35a';
       ctx.fillRect(p.x, p.y, p.w, p.h);
 
-      // Coconuts
+      // coconuts
       ctx.fillStyle = '#8b4513';
       for (const c of jungle.coconuts) {
         ctx.beginPath();
@@ -422,13 +390,1431 @@
 
       if (jungle.hasEgg) {
         ctx.fillStyle = '#000000aa';
-        ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
+        ctx.fillRect(0, HEIGHT - 60, WIDTH, 60);
         ctx.fillStyle = '#ffffff';
-        ctx.fillText('You reached the egg! (Next: story continues at home.)', 10, HEIGHT - 18);
+        ctx.fillText('You reached the egg! Press E / Space / Enter to bring it home.', 10, HEIGHT - 30);
       }
     }
 
-    // ---------- INPUT HANDLERS ----------
+    // ---------- LEVEL 2: HOUSE + HUB + MINI-GAMES ----------
+    const house2 = {
+      player: { x: 150, y: 320, w: 24, h: 24 },
+      bird:   { x: 250, y: 320, w: 24, h: 24 },
+      egg:    { x: 420, y: 260, w: 26, h: 32 },
+      garfield: { present: false, x: 420, y: 260, w: 26, h: 26 },
+      phase: "talk_bird",
+      birdLine: 0,
+      feedingStep: 0
+    };
+
+    function initHouse2() {
+      house2.player.x = 150;
+      house2.player.y = 320;
+      house2.phase = "talk_bird";
+      house2.birdLine = 0;
+      house2.garfield.present = false;
+      house2.feedingStep = 0;
+    }
+
+    function drawHouse2() {
+      ctx.fillStyle = '#1b1f33';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#2f3b4f';
+      ctx.fillRect(40, 260, WIDTH - 80, 160);
+
+      // table
+      ctx.fillStyle = '#8b5a2b';
+      ctx.fillRect(380, 260, 120, 20);
+
+      // egg or garfield
+      if (!house2.garfield.present) {
+        ctx.fillStyle = '#fce38a';
+        ctx.fillRect(house2.egg.x, house2.egg.y - 20, house2.egg.w, house2.egg.h);
+        ctx.strokeStyle = '#f8f9faaa';
+        ctx.strokeRect(house2.egg.x - 6, house2.egg.y - 26, house2.egg.w + 12, house2.egg.h + 12);
+      } else {
+        ctx.fillStyle = '#ffba66';
+        ctx.fillRect(house2.garfield.x, house2.garfield.y - 20, house2.garfield.w, house2.garfield.h);
+        ctx.fillStyle = '#cc7a29';
+        ctx.fillRect(house2.garfield.x, house2.garfield.y - 24, house2.garfield.w, 6);
+      }
+
+      // player and bird
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(house2.player.x, house2.player.y, house2.player.w, house2.player.h);
+      ctx.fillStyle = '#ff4b4b';
+      ctx.fillRect(house2.bird.x, house2.bird.y, house2.bird.w, house2.bird.h);
+
+      // HUD
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, 0, WIDTH, 40);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('House: Move with arrows/WASD. Interact: E / Space / Enter', 10, 22);
+
+      // dialogue
+      if (house2.phase === "talk_bird") {
+        const lines = [
+          'Angry Bird: "You did it! You brought the egg back home!"',
+          'Angry Bird: "...Wait. Do you hear that? I think it\'s hatching!"'
+        ];
+        drawDialogueBox(lines[house2.birdLine]);
+      } else if (house2.phase === "check_egg") {
+        drawDialogueBox('Walk up to the egg and press E to check it.');
+      } else if (house2.phase === "hatched") {
+        drawDialogueBox('Garfield: "Mrrrow... I\'m hungry..."');
+      } else if (house2.phase === "dialogue_choice") {
+        drawDialogueBox('Press 1: "Let\'s get you something yummy."   Press 2: "You\'re already demanding, huh?"');
+      } else if (house2.phase === "done") {
+        drawDialogueBox('Time to go outside and find Garfield some food.');
+      } else if (house2.phase === "feeding" || house2.phase === "feeding_end" || house2.phase === "post_burger") {
+        drawFeedingOverlay();
+      }
+    }
+
+    function drawDialogueBox(text) {
+      const boxWidth = WIDTH - 40;
+      const boxHeight = 120;
+      const boxX = 20;
+      const boxY = HEIGHT - boxHeight - 20;
+      ctx.fillStyle = '#000000dd';
+      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      const lines = (text || '').split('\n');
+      let y = boxY + 24;
+      for (const line of lines) {
+        const words = line.split(' ');
+        let cur = '';
+        for (let i = 0; i < words.length; i++) {
+          const testLine = cur + words[i] + ' ';
+          if (testLine.length > 55) {
+            ctx.fillText(cur, boxX + 10, y);
+            cur = words[i] + ' ';
+            y += 18;
+          } else {
+            cur = testLine;
+          }
+        }
+        ctx.fillText(cur, boxX + 10, y);
+        y += 18;
+      }
+    }
+
+    function updateHouse2() {}
+
+    function house2Interact(key) {
+      const p = house2.player;
+      const distToEgg  = Math.abs(p.x - house2.egg.x) + Math.abs(p.y - (house2.egg.y));
+      if (house2.phase === "talk_bird") {
+        if (key === ' ' || key === 'Enter' || key.toLowerCase() === 'e') {
+          house2.birdLine += 1;
+          if (house2.birdLine > 1) house2.phase = "check_egg";
+        }
+      } else if (house2.phase === "check_egg") {
+        if (distToEgg < 80 && (key === ' ' || key === 'Enter' || key.toLowerCase() === 'e')) {
+          house2.garfield.present = true;
+          house2.phase = "hatched";
+        }
+      } else if (house2.phase === "hatched") {
+        if (key === ' ' || key === 'Enter' || key.toLowerCase() === 'e') {
+          house2.phase = "dialogue_choice";
+        }
+      } else if (house2.phase === "dialogue_choice") {
+        if (key === '1' || key === '2') {
+          house2.phase = "done";
+        }
+      } else if (house2.phase === "done") {
+        if (key === ' ' || key === 'Enter' || key.toLowerCase() === 'e') {
+          initHub2();
+          state = "hub2";
+        }
+      } else if (house2.phase === "feeding") {
+        if (key === ' ' || key === 'Enter' || key.toLowerCase() === 'e') {
+          house2.feedingStep += 1;
+          if (house2.feedingStep > 4) {
+            house2.phase = "feeding_end";
+          }
+        }
+      } else if (house2.phase === "feeding_end") {
+        if (key === ' ' || key === 'Enter' || key.toLowerCase() === 'e') {
+          initHouse3Dock();
+          state = "house3";
+        }
+      } else if (house2.phase === "post_burger") {
+        // handled in house3 / wish_scene
+      }
+    }
+
+    function moveHouse2Player(dx, dy) {
+      house2.player.x = Math.max(60, Math.min(WIDTH - 60, house2.player.x + dx * TILE));
+      house2.player.y = Math.max(260, Math.min(380, house2.player.y + dy * TILE));
+    }
+
+    // ---------- LEVEL 2 HUB + MINI-GAMES ----------
+    const hub2 = {
+      player: { x: 320, y: 380, w: 24, h: 24 },
+      tacosDone: false,
+      sushiDone: false,
+      dessertDone: false
+    };
+
+    function initHub2() {
+      hub2.player.x = 320;
+      hub2.player.y = 380;
+    }
+
+    function drawHub2() {
+      ctx.fillStyle = '#20513a';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      // house
+      ctx.fillStyle = '#d4a373';
+      ctx.fillRect(300, 400, 80, 40);
+
+      // taco
+      ctx.fillStyle = '#f77f00';
+      ctx.fillRect(80, 80, 100, 60);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('Taco Town', 90, 110);
+
+      // sushi
+      ctx.fillStyle = '#1f4f7b';
+      ctx.fillRect(460, 80, 100, 60);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('Sushi Street', 468, 110);
+
+      // dessert
+      ctx.fillStyle = '#c78fff';
+      ctx.fillRect(270, 200, 100, 60);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('Dessert Dunes', 272, 230);
+
+      // player
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(hub2.player.x, hub2.player.y, hub2.player.w, hub2.player.h);
+
+      // HUD
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, 0, WIDTH, 50);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Hub: Walk to a food area and press E to enter.', 10, 20);
+      ctx.fillText(`Tacos: ${hub2.tacosDone ? 'âœ“' : ' '}, Sushi: ${hub2.sushiDone ? 'âœ“' : ' '}, Dessert: ${hub2.dessertDone ? 'âœ“' : ' '}`, 10, 38);
+
+      // prompt return
+      if (hub2.tacosDone && hub2.sushiDone && hub2.dessertDone) {
+        ctx.fillStyle = '#000000aa';
+        ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('All foods collected! Walk back to the house and press E to feed Garfield.', 10, HEIGHT - 18);
+      }
+    }
+
+    function moveHub2Player(dx, dy) {
+      hub2.player.x = Math.max(20, Math.min(WIDTH - 40, hub2.player.x + dx * TILE));
+      hub2.player.y = Math.max(60, Math.min(HEIGHT - 40, hub2.player.y + dy * TILE));
+    }
+
+    function hub2Interact(key) {
+      if (!(key === ' ' || key === 'Enter' || key.toLowerCase() === 'e')) return;
+      const p = hub2.player;
+
+      // Taco
+      if (!hub2.tacosDone &&
+          p.x > 60 && p.x < 200 &&
+          p.y > 60 && p.y < 180) {
+        initTaco();
+        state = "taco";
+        return;
+      }
+      // Sushi
+      if (!hub2.sushiDone &&
+          p.x > 440 && p.x < 580 &&
+          p.y > 60 && p.y < 180) {
+        initSushi();
+        state = "sushi";
+        return;
+      }
+      // Dessert
+      if (!hub2.dessertDone &&
+          p.x > 250 && p.x < 380 &&
+          p.y > 180 && p.y < 280) {
+        initDessert();
+        state = "dessert";
+        return;
+      }
+      // Return home with food
+      if (hub2.tacosDone && hub2.sushiDone && hub2.dessertDone &&
+          p.x > 280 && p.x < 380 &&
+          p.y > 380 && p.y < 440) {
+        initFeedingScene();
+        state = "house2";
+      }
+    }
+
+    // Taco Town
+    const tacoTown = {
+      progress: 0,
+      barX: 120,
+      barY: 240,
+      barW: 400,
+      goodStart: 250,
+      goodEnd: 370
+    };
+
+    function initTaco() { tacoTown.progress = 0; }
+
+    function drawTaco() {
+      ctx.fillStyle = '#4a2c10';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#f77f00';
+      ctx.fillRect(0, HEIGHT - 80, WIDTH, 80);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Taco Town: Press E when the marker is in the green zone to cook tacos.', 10, HEIGHT - 50);
+      ctx.fillText(`Tacos cooked: ${tacoTown.progress} / 3`, 10, HEIGHT - 28);
+
+      ctx.fillStyle = '#333333';
+      ctx.fillRect(tacoTown.barX, tacoTown.barY, tacoTown.barW, 20);
+      ctx.fillStyle = '#38b000';
+      ctx.fillRect(tacoTown.goodStart, tacoTown.barY, tacoTown.goodEnd - tacoTown.goodStart, 20);
+
+      const t = Date.now() / 400;
+      const markerPos = tacoTown.barX + ((Math.sin(t) + 1) / 2) * tacoTown.barW;
+      ctx.fillStyle = '#ffdd00';
+      ctx.fillRect(markerPos - 5, tacoTown.barY - 10, 10, 40);
+    }
+
+    function tacoInteract(key) {
+      if (!(key === ' ' || key === 'Enter' || key.toLowerCase() === 'e')) return;
+      const t = Date.now() / 400;
+      const markerPos = tacoTown.barX + ((Math.sin(t) + 1) / 2) * tacoTown.barW;
+      if (markerPos >= tacoTown.goodStart && markerPos <= tacoTown.goodEnd) {
+        tacoTown.progress += 1;
+      }
+      if (tacoTown.progress >= 3) {
+        hub2.tacosDone = true;
+        state = "hub2";
+      }
+    }
+
+    // Sushi Street
+    const sushiStreet = {
+      fishSlots: [
+        { color: 'red',   placed: false },
+        { color: 'blue',  placed: false },
+        { color: 'green', placed: false }
+      ],
+      held: null
+    };
+
+    function initSushi() {
+      sushiStreet.fishSlots.forEach(slot => slot.placed = false);
+      sushiStreet.held = null;
+    }
+
+    function drawSushi() {
+      ctx.fillStyle = '#0b1b33';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#1f4f7b';
+      ctx.fillRect(0, HEIGHT - 80, WIDTH, 80);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Sushi Street: Press 1/2/3 to pick fish, 7/8/9 to place on matching plate.', 10, HEIGHT - 50);
+
+      const baseX = 160;
+      sushiStreet.fishSlots.forEach((slot, i) => {
+        if (!slot.placed) {
+          ctx.fillStyle = slot.color;
+          ctx.fillRect(baseX + i * 80, 220, 24, 24);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(String(i + 1), baseX + i * 80 + 8, 260);
+        }
+      });
+
+      ['red', 'blue', 'green'].forEach((color, i) => {
+        const px = baseX + i * 80;
+        ctx.fillStyle = '#888888';
+        ctx.fillRect(px, 320, 40, 12);
+        ctx.fillStyle = color;
+        ctx.fillRect(px + 10, 322, 20, 8);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(String(7 + i), px + 10, 350);
+      });
+
+      if (sushiStreet.held) {
+        ctx.fillStyle = sushiStreet.held;
+        ctx.fillRect(500, 260, 24, 24);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('Held', 490, 250);
+      }
+    }
+
+    function sushiInteract(key) {
+      if (key === '1' || key === '2' || key === '3') {
+        const idx = parseInt(key, 10) - 1;
+        const slot = sushiStreet.fishSlots[idx];
+        if (!slot.placed && !sushiStreet.held) {
+          sushiStreet.held = slot.color;
+          slot.placed = true;
+        }
+      } else if (key === '7' || key === '8' || key === '9') {
+        const plateIdx = parseInt(key, 10) - 7;
+        const plateColor = ['red', 'blue', 'green'][plateIdx];
+        if (sushiStreet.held && sushiStreet.held === plateColor) {
+          sushiStreet.held = null;
+        }
+      }
+      const anyUnplaced = sushiStreet.fishSlots.some(slot => !slot.placed);
+      if (!anyUnplaced && !sushiStreet.held) {
+        hub2.sushiDone = true;
+        state = "hub2";
+      }
+    }
+
+    // Dessert Dunes
+    const dessertDunes = {
+      correctOrder: ['bottom', 'middle', 'top'],
+      currentOrder: []
+    };
+
+    function initDessert() { dessertDunes.currentOrder = []; }
+
+    function drawDessert() {
+      ctx.fillStyle = '#3b2040';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#c78fff';
+      ctx.fillRect(0, HEIGHT - 80, WIDTH, 80);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Dessert Dunes: Press 1 for bottom, 2 for middle, 3 for top (in order).', 10, HEIGHT - 50);
+      ctx.fillText(`Current: ${dessertDunes.currentOrder.join(' > ')}`, 10, HEIGHT - 28);
+
+      // plate
+      ctx.fillStyle = '#e0e0ff';
+      ctx.fillRect(290, 260, 60, 10);
+
+      // stack preview
+      const baseX = 300;
+      let y = 270;
+      dessertDunes.currentOrder.forEach(layer => {
+        if (layer === 'bottom') {
+          ctx.fillStyle = '#ffcc99';
+          ctx.fillRect(baseX - 10, y, 40, 14);
+          y += 14;
+        } else if (layer === 'middle') {
+          ctx.fillStyle = '#ff99cc';
+          ctx.fillRect(baseX - 6, y, 32, 12);
+          y += 12;
+        } else if (layer === 'top') {
+          ctx.fillStyle = '#ffee88';
+          ctx.fillRect(baseX - 3, y, 26, 10);
+          y += 10;
+        }
+      });
+    }
+
+    function dessertInteract(key) {
+      if (key === '1') dessertDunes.currentOrder.push('bottom');
+      else if (key === '2') dessertDunes.currentOrder.push('middle');
+      else if (key === '3') dessertDunes.currentOrder.push('top');
+
+      if (dessertDunes.currentOrder.length === 3) {
+        if (dessertDunes.currentOrder.join(',') === dessertDunes.correctOrder.join(',')) {
+          hub2.dessertDone = true;
+          state = "hub2";
+        } else {
+          dessertDunes.currentOrder = [];
+        }
+      }
+    }
+
+    function initFeedingScene() {
+      house2.phase = "feeding";
+      house2.garfield.present = true;
+      house2.feedingStep = 0;
+    }
+
+    function drawFeedingOverlay() {
+      let text = '';
+      if (house2.phase === "feeding" || house2.phase === "feeding_end") {
+        if (house2.feedingStep === 0) {
+          text = 'You bring Garfield tacos. He sniffs them, then turns his head away. "He doesn\'t seem satisfied..."';
+        } else if (house2.feedingStep === 1) {
+          text = 'You try sushi next. He takes a bite, makes a "bleh" face, and pushes the rest away.';
+        } else if (house2.feedingStep === 2) {
+          text = 'You offer dessert. He watches the cupcakes, yawns, and flops over in dramatic slow motion.';
+        } else if (house2.feedingStep === 3) {
+          text = 'Garfield: "Mrrrow... still hungry. Something\'s missing..."';
+        } else {
+          text = 'You fed Garfield everything you could find on land, but his craving lies somewhere deeper... Maybe under the sea. (Press E to continue.)';
+        }
+      } else if (house2.phase === "post_burger") {
+        if (house2.feedingStep === 0) {
+          text = 'You offer the Legendary Burger. Garfield chomps it in one bite. For a second, nothing happens...';
+        } else if (house2.feedingStep === 1) {
+          text = 'Then he begins to glow. The collar lights up, the empty star slot shining brightly.';
+        } else if (house2.feedingStep === 2) {
+          text = 'Words appear in the air: "This is the Wish Collar, made to hold a Wish Star."';
+        } else if (house2.feedingStep === 3) {
+          text = '"Only when the collar holds the moon\'s Wish Star can its true power be unlocked."';
+        } else if (house2.feedingStep === 4) {
+          text = 'Garfield: "Mrrrow... I feel different. Like something is still missing." He looks up at the moon.';
+        } else {
+          text = 'Outside, a blueprint of a blue spaceship flickers into view near your house. "Next: Build a spaceship to reach the moon." (Press E)';
+        }
+      }
+      drawDialogueBox(text);
+    }
+
+    // ---------- LEVEL 3: HOUSE DOCK + UNDERSEA ----------
+    const house3 = {
+      player: { x: 100, y: 350, w: 24, h: 24 },
+      submarine: { x: 480, y: 340, w: 60, h: 40 },
+      phase: "intro"
+    };
+
+    function initHouse3Dock() {
+      house3.player.x = 100;
+      house3.player.y = 350;
+      house3.phase = "intro";
+    }
+
+    function drawHouse3() {
+      ctx.fillStyle = '#1b1f33';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#1864ab';
+      ctx.fillRect(0, 360, WIDTH, 120);
+      ctx.fillStyle = '#2f9e44';
+      ctx.fillRect(0, 340, 640, 20);
+
+      // dock
+      ctx.fillStyle = '#d4a373';
+      ctx.fillRect(60, 340, 120, 20);
+
+      // submarine
+      ctx.fillStyle = '#4cc9f0';
+      ctx.fillRect(house3.submarine.x, house3.submarine.y, house3.submarine.w, house3.submarine.h);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(house3.submarine.x + 10, house3.submarine.y + 10, 16, 16);
+
+      // player
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(house3.player.x, house3.player.y, house3.player.w, house3.player.h);
+
+      // HUD
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, 0, WIDTH, 40);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Walk to the submarine and press E to go under the sea.', 10, 22);
+
+      if (house3.phase === "intro") {
+        drawDialogueBox('Garfield: "Mrrrow... I want something... legendary..." You remember a story about a burger under the sea.');
+      }
+    }
+
+    function moveHouse3Player(dx, dy) {
+      house3.player.x = Math.max(20, Math.min(WIDTH - 40, house3.player.x + dx * TILE));
+      house3.player.y = Math.max(260, Math.min(380, house3.player.y + dy * TILE));
+    }
+
+    function house3Interact(key) {
+      if (!(key === ' ' || key === 'Enter' || key.toLowerCase() === 'e')) return;
+      const p = house3.player;
+      const sub = house3.submarine;
+      const playerBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+      const subBox = { x: sub.x, y: sub.y, w: sub.w, h: sub.h };
+      if (rectsOverlap(playerBox, subBox)) {
+        initUndersea();
+        state = "undersea";
+      } else if (house3.phase === "intro") {
+        house3.phase = "walk_to_dock";
+      }
+      return;
+    }
+
+    // Undersea
+    const undersea = {
+      player: { x: 80, y: 240, vx: 0, vy: 0, w: 24, h: 24 },
+      gravity: 0.04,
+      swimForce: -0.15,
+      moveSpeed: 1.2,
+      jellyfish: [],
+      pickles: [],
+      grillArea: { x: 240, y: 260, w: 120, h: 100 },
+      caveEntrance: { x: 520, y: 260, w: 40, h: 80 },
+      jellyCollected: 0,
+      picklesCollected: 0,
+      bunsPattyCollected: false,
+      burgerMade: false
+    };
+
+    function initUndersea() {
+      undersea.player = { x: 80, y: 240, vx: 0, vy: 0, w: 24, h: 24 };
+      undersea.jellyfish = [];
+      for (let i = 0; i < 5; i++) {
+        undersea.jellyfish.push({
+          x: 80 + i * 60,
+          y: 140 + (i % 2) * 80,
+          r: 12,
+          dir: i % 2 === 0 ? 1 : -1
+        });
+      }
+      undersea.pickles = [
+        { x: 520, y: 220, w: 12, h: 12, taken: false },
+        { x: 560, y: 240, w: 12, h: 12, taken: false },
+        { x: 540, y: 200, w: 12, h: 12, taken: false }
+      ];
+      undersea.jellyCollected = 0;
+      undersea.picklesCollected = 0;
+      undersea.bunsPattyCollected = false;
+      undersea.burgerMade = false;
+    }
+
+    function updateUndersea() {
+      const p = undersea.player;
+
+      p.vx = 0;
+      if (keys['ArrowLeft'] || keys['a'])  p.vx = -undersea.moveSpeed;
+      if (keys['ArrowRight'] || keys['d']) p.vx =  undersea.moveSpeed;
+      if (keys['ArrowUp'] || keys['w'] || keys[' ']) {
+        p.vy += undersea.swimForce;
+      }
+      p.vy += undersea.gravity;
+
+      p.x += p.vx;
+      p.y += p.vy;
+
+      p.vx *= 0.98;
+      p.vy *= 0.99;
+
+      // bounds
+      if (p.x < 0) p.x = 0;
+      if (p.x + p.w > WIDTH) p.x = WIDTH - p.w;
+      if (p.y < 60) { p.y = 60; p.vy = 0; }
+      if (p.y + p.h > HEIGHT - 20) { p.y = HEIGHT - 20 - p.h; p.vy = 0; }
+
+      // jellyfish sway
+      for (const j of undersea.jellyfish) {
+        j.x += 0.5 * j.dir;
+        if (j.x < 40 || j.x > 220) j.dir *= -1;
+        j.y += Math.sin(Date.now() / 500 + j.x / 30) * 0.2;
+      }
+
+      // pickles
+      for (const pk of undersea.pickles) {
+        if (!pk.taken) {
+          const box = { x: pk.x, y: pk.y, w: pk.w, h: pk.h };
+          const playerBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+          if (rectsOverlap(playerBox, box)) {
+            pk.taken = true;
+            undersea.picklesCollected += 1;
+          }
+        }
+      }
+    }
+
+    function drawUndersea() {
+      ctx.fillStyle = '#001b33';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#f4a261';
+      ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
+
+      // regions
+      ctx.fillStyle = '#264653';
+      ctx.fillRect(40, 260, 40, 60);
+      ctx.fillRect(140, 250, 50, 70);
+      ctx.fillRect(260, 260, 80, 60);
+      ctx.fillRect(520, 260, 40, 80);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('Jellyfish Fields', 40, 90);
+      ctx.fillText('Grill Shack', 270, 250);
+      ctx.fillText('Pickle Cave', 520, 250);
+
+      for (const j of undersea.jellyfish) {
+        ctx.fillStyle = '#ff6bcb';
+        ctx.beginPath();
+        ctx.arc(j.x, j.y, j.r, Math.PI, 0);
+        ctx.lineTo(j.x + j.r, j.y + j.r);
+        ctx.lineTo(j.x - j.r, j.y + j.r);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.fillStyle = '#2a9d8f';
+      for (const pk of undersea.pickles) {
+        if (!pk.taken) ctx.fillRect(pk.x, pk.y, pk.w, pk.h);
+      }
+
+      const p = undersea.player;
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+
+      // HUD
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, 0, WIDTH, 50);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Undersea: A/D to swim, W/Up/Space to swim up. E to interact / net.', 10, 20);
+      ctx.fillText(`Jelly: ${undersea.jellyCollected}/5  | Pickles: ${undersea.picklesCollected}/3  | Burger parts: ${undersea.bunsPattyCollected ? 'OK' : 'Missing'}`, 10, 38);
+
+      // grill prompt
+      const grill = undersea.grillArea;
+      if (p.x + p.w > grill.x && p.x < grill.x + grill.w &&
+          p.y + p.h > grill.y && p.y < grill.y + grill.h) {
+        ctx.fillStyle = '#000000aa';
+        ctx.fillRect(0, HEIGHT - 70, WIDTH, 30);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('Press E to try assembling the Legendary Burger.', 10, HEIGHT - 50);
+      }
+
+      if (!undersea.burgerMade) {
+        ctx.fillStyle = '#000000aa';
+        ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('Catch jellyfish on the left, gather pickles in the cave, then return to the Grill Shack.', 10, HEIGHT - 18);
+      } else {
+        ctx.fillStyle = '#000000aa';
+        ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('Legendary Burger made! Swim to the left submarine and press E to return home.', 10, HEIGHT - 18);
+      }
+    }
+
+    function underseaInteract(key) {
+      if (!(key === ' ' || key === 'Enter' || key.toLowerCase() === 'e')) return;
+      const p = undersea.player;
+      const playerBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+
+      // catch jelly
+      for (const j of undersea.jellyfish) {
+        const jellyBox = { x: j.x - j.r, y: j.y - j.r, w: j.r * 2, h: j.r * 2 };
+        if (rectsOverlap(playerBox, jellyBox)) {
+          undersea.jellyCollected = Math.min(5, undersea.jellyCollected + 1);
+          j.x = -1000;
+          break;
+        }
+      }
+
+      // grill craft
+      const grillBox = undersea.grillArea;
+      if (rectsOverlap(playerBox, grillBox)) {
+        if (undersea.jellyCollected < 5 || undersea.picklesCollected < 3) {
+          console.log("You need more jelly or pickles before you can make the burger.");
+        } else {
+          undersea.bunsPattyCollected = true;
+          undersea.burgerMade = true;
+        }
+        return;
+      }
+
+      // return home with burger
+      if (undersea.burgerMade && p.x < 40 && p.y > 300) {
+        initHouse3PostBurger();
+        state = "house3";
+      }
+    }
+
+    function initHouse3PostBurger() {
+      house2.phase = "post_burger";
+      house2.feedingStep = 0;
+      house3.phase = "post_burger";
+    }
+
+    function drawHouse3PostBurger() {
+      ctx.fillStyle = '#1b1f33';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#2f3b4f';
+      ctx.fillRect(40, 260, WIDTH - 80, 160);
+      ctx.fillStyle = '#8b5a2b';
+      ctx.fillRect(380, 260, 120, 20);
+
+      // garfield
+      ctx.fillStyle = '#ffba66';
+      ctx.fillRect(house2.garfield.x, house2.garfield.y - 20, house2.garfield.w, house2.garfield.h);
+      ctx.fillStyle = '#cc7a29';
+      ctx.fillRect(house2.garfield.x, house2.garfield.y - 24, house2.garfield.w, 6);
+
+      // player
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(300, 340, 24, 24);
+
+      // collar hint
+      ctx.strokeStyle = '#f1faee';
+      ctx.beginPath();
+      ctx.arc(house2.garfield.x + 13, house2.garfield.y - 10, 18, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // star spires
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeRect(70, 80, 80, 60);
+      ctx.beginPath();
+      ctx.arc(110, 110, 20, 0, Math.PI * 2);
+      ctx.stroke();
+
+      drawFeedingOverlay();
+    }
+
+    // ---------- LEVEL 4: SHIP BUILD + LAUNCH ----------
+    const shipBuild = {
+      player: { x: 320, y: 360, w: 24, h: 24 },
+      fuselage: false,
+      jellyFuel: false,
+      wrapper: false,
+      canopy: false
+    };
+
+    function initShipBuild() {
+      shipBuild.player.x = 320;
+      shipBuild.player.y = 360;
+    }
+
+    function drawShipBuild() {
+      ctx.fillStyle = '#204020';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      // shed
+      ctx.fillStyle = '#d4a373';
+      ctx.fillRect(280, 280, 80, 60);
+
+      // tree with fuselage
+      ctx.fillStyle = '#5a3c1a';
+      ctx.fillRect(80, 260, 20, 60);
+      ctx.fillStyle = '#2f9e44';
+      ctx.fillRect(60, 220, 60, 40);
+
+      // lab with fuel
+      ctx.fillStyle = '#444';
+      ctx.fillRect(480, 280, 40, 20);
+      ctx.fillStyle = '#48cae4';
+      ctx.fillRect(490, 260, 20, 20);
+
+      // trash with wrapper
+      ctx.fillStyle = '#555';
+      ctx.fillRect(200, 320, 24, 40);
+
+      // canopy room
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeRect(300, 290, 40, 40);
+
+      // pad + outline
+      ctx.fillStyle = '#1b263b';
+      ctx.fillRect(400, 340, 160, 80);
+      ctx.strokeStyle = '#4cc9f0';
+      ctx.strokeRect(410, 350, 140, 60);
+
+      // placed parts
+      if (shipBuild.fuselage) {
+        ctx.fillStyle = '#4361ee';
+        ctx.fillRect(430, 360, 100, 20);
+      }
+      if (shipBuild.canopy) {
+        ctx.fillStyle = '#f9c74f';
+        ctx.fillRect(460, 380, 40, 16);
+      }
+      if (shipBuild.wrapper) {
+        ctx.fillStyle = '#ff006e';
+        ctx.fillRect(420, 375, 20, 12);
+        ctx.fillRect(520, 375, 20, 12);
+      }
+      if (shipBuild.jellyFuel) {
+        ctx.fillStyle = '#4cc9f0';
+        ctx.fillRect(450, 400, 40, 10);
+      }
+
+      // player
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(shipBuild.player.x, shipBuild.player.y, shipBuild.player.w, shipBuild.player.h);
+
+      // HUD
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, 0, WIDTH, 50);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Shipyard: Collect parts and assemble the blue spaceship. E to interact.', 10, 20);
+      ctx.fillText(`Fuselage: ${shipBuild.fuselage?'âœ“':' '}  Jelly Fuel: ${shipBuild.jellyFuel?'âœ“':' '}  Wrapper: ${shipBuild.wrapper?'âœ“':' '}  Canopy: ${shipBuild.canopy?'âœ“':' '}`, 10, 38);
+
+      if (shipBuild.fuselage && shipBuild.jellyFuel && shipBuild.wrapper && shipBuild.canopy) {
+        ctx.fillStyle = '#000000aa';
+        ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('All parts ready! Stand on the ship and press E to launch.', 10, HEIGHT - 18);
+      }
+    }
+
+    function moveShipBuildPlayer(dx, dy) {
+      shipBuild.player.x = Math.max(20, Math.min(WIDTH - 40, shipBuild.player.x + dx * TILE));
+      shipBuild.player.y = Math.max(260, Math.min(HEIGHT - 40, shipBuild.player.y + dy * TILE));
+    }
+
+    function shipBuildInteract(key) {
+      if (!(key === ' ' || key === 'Enter' || key.toLowerCase() === 'e')) return;
+      const p = shipBuild.player;
+      const pb = { x: p.x, y: p.y, w: p.w, h: p.h };
+
+      // fuselage at tree
+      const treeBox = { x: 60, y: 220, w: 60, h: 100 };
+      if (!shipBuild.fuselage && rectsOverlap(pb, treeBox)) {
+        shipBuild.fuselage = true;
+        return;
+      }
+      // jelly fuel at lab
+      const labBox = { x: 480, y: 260, w: 60, h: 60 };
+      if (!shipBuild.jellyFuel && rectsOverlap(pb, labBox)) {
+        shipBuild.jellyFuel = true;
+        return;
+      }
+      // wrapper at trash
+      const trashBox = { x: 200, y: 320, w: 24, h: 40 };
+      if (!shipBuild.wrapper && rectsOverlap(pb, trashBox)) {
+        shipBuild.wrapper = true;
+        return;
+      }
+      // canopy in room
+      const roomBox = { x: 300, y: 290, w: 40, h: 40 };
+      if (!shipBuild.canopy && rectsOverlap(pb, roomBox)) {
+        shipBuild.canopy = true;
+        return;
+      }
+      // launch
+      const shipBox = { x: 410, y: 350, w: 140, h: 60 };
+      if (shipBuild.fuselage && shipBuild.jellyFuel && shipBuild.wrapper && shipBuild.canopy &&
+          rectsOverlap(pb, shipBox)) {
+        initShipLaunch();
+        state = "ship_launch";
+      }
+    }
+
+    const shipLaunch = { t: 0 };
+
+    function initShipLaunch() { shipLaunch.t = 0; }
+
+    function updateShipLaunch() {
+      shipLaunch.t += 1;
+      if (shipLaunch.t > 180) {
+        initMoonBoss();
+        state = "moon_boss";
+      }
+    }
+
+    function drawShipLaunch() {
+      const t = shipLaunch.t;
+      const offsetY = -t * 1.2;
+
+      ctx.fillStyle = '#000814';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      // stars
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 50; i++) {
+        const sx = (i * 37) % WIDTH;
+        const sy = ((i * 71) + t * 2) % HEIGHT;
+        ctx.fillRect(sx, sy, 2, 2);
+      }
+
+      // ship
+      const baseY = 320 + offsetY;
+      ctx.fillStyle = '#4361ee';
+      ctx.fillRect(270, baseY, 100, 30);
+      ctx.fillStyle = '#f9c74f';
+      ctx.fillRect(290, baseY - 20, 60, 20);
+      ctx.fillStyle = '#4cc9f0';
+      ctx.fillRect(290, baseY + 30, 20, 10);
+      ctx.fillRect(330, baseY + 30, 20, 10);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(300, baseY - 15, 16, 16);
+      ctx.fillStyle = '#ffba66';
+      ctx.fillRect(302, baseY - 13, 12, 12);
+
+      // HUD
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, 0, WIDTH, 40);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('SPACESHIP TIME! Garfield looks out the window as you blast off toward the moon.', 10, 22);
+
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('Next stop: the moon... and the Wish Star.', 10, HEIGHT - 18);
+    }
+
+    // ---------- LEVEL 5: NEW TWO-STAGE MOON BOSS ----------
+    const moon = {
+      substate: 'stage1', // stage1, stage2, lose
+      lastSubstate: 'stage1',
+
+      // Stage 1 (sky shooter)
+      player1: { x: WIDTH/2 - 12, y: HEIGHT - 40, w: 24, h: 24, speed: 3, hp: 3 },
+      dragon1: {
+        x: WIDTH/2 - 80, y: 40, w: 160, h: 60,
+        hp: 12, maxHp: 12,
+        phase: 'rain', phaseTimer: 0, hitFlash: 0
+      },
+      bullets: [],   // hearts
+      shots: [],     // dragon fireballs
+      warnings: [],  // warning circles
+      shotCooldown: 0,
+      stage1Done: false,
+
+      // Stage 2 (ground boxing)
+      player2: { x: 80, y: HEIGHT - 64, w: 24, h: 32, vx: 0, vy: 0, speed: 2.5, onGround: false, hp: 3 },
+      dragon2: {
+        x: WIDTH - 160, y: HEIGHT - 104, w: 120, h: 64,
+        hp: 5, maxHp: 5,
+        phase: 'approach', phaseTimer: 0, hitFlash: 0, dir: -1
+      },
+      punchCooldown: 0
+    };
+
+    function initMoonBoss() {
+      // init stage 1
+      moon.substate = 'stage1';
+      moon.lastSubstate = 'stage1';
+
+      moon.player1.x = WIDTH/2 - 12;
+      moon.player1.y = HEIGHT - 40;
+      moon.player1.hp = 3;
+
+      moon.dragon1.x = WIDTH/2 - 80;
+      moon.dragon1.y = 40;
+      moon.dragon1.hp = moon.dragon1.maxHp;
+      moon.dragon1.phase = 'rain';
+      moon.dragon1.phaseTimer = 0;
+      moon.dragon1.hitFlash = 0;
+
+      moon.bullets.length = 0;
+      moon.shots.length = 0;
+      moon.warnings.length = 0;
+      moon.shotCooldown = 0;
+      moon.stage1Done = false;
+
+      // pre-init stage 2 defaults
+      moon.player2.x = 80;
+      moon.player2.y = HEIGHT - 64;
+      moon.player2.vx = 0;
+      moon.player2.vy = 0;
+      moon.player2.hp = 3;
+      moon.player2.onGround = false;
+
+      moon.dragon2.x = WIDTH - 160;
+      moon.dragon2.y = HEIGHT - 104;
+      moon.dragon2.hp = moon.dragon2.maxHp;
+      moon.dragon2.phase = 'approach';
+      moon.dragon2.phaseTimer = 0;
+      moon.dragon2.hitFlash = 0;
+      moon.dragon2.dir = -1;
+
+      moon.punchCooldown = 0;
+    }
+
+    function startMoonStage2() {
+      moon.substate = 'stage2';
+      moon.lastSubstate = 'stage2';
+
+      moon.player2.x = 80;
+      moon.player2.y = HEIGHT - 64;
+      moon.player2.vx = 0;
+      moon.player2.vy = 0;
+      moon.player2.hp = 3;
+      moon.player2.onGround = false;
+
+      moon.dragon2.x = WIDTH - 160;
+      moon.dragon2.y = HEIGHT - 104;
+      moon.dragon2.hp = moon.dragon2.maxHp;
+      moon.dragon2.phase = 'approach';
+      moon.dragon2.phaseTimer = 0;
+      moon.dragon2.hitFlash = 0;
+      moon.dragon2.dir = -1;
+
+      moon.punchCooldown = 0;
+    }
+
+    function updateMoonBoss() {
+      if (moon.substate === 'stage1') {
+        updateMoonStage1();
+      } else if (moon.substate === 'stage2') {
+        updateMoonStage2();
+      } else if (moon.substate === 'lose') {
+        // waiting for retry
+      }
+    }
+
+    function drawMoonBoss() {
+      if (moon.substate === 'stage1') {
+        drawMoonStage1();
+      } else if (moon.substate === 'stage2') {
+        drawMoonStage2();
+      } else if (moon.substate === 'lose') {
+        if (moon.lastSubstate === 'stage1') drawMoonStage1();
+        else drawMoonStage2();
+        ctx.fillStyle = '#000000aa';
+        ctx.fillRect(0, HEIGHT/2 - 30, WIDTH, 60);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '16px sans-serif';
+        ctx.fillText('You were defeated. Press R to retry.', 180, HEIGHT/2);
+      }
+    }
+
+    function moonBossInteract(key) {
+      if (key === 'r' || key === 'R') {
+        initMoonBoss();
+      }
+    }
+
+    // Stage 1 update/draw
+    function updateMoonStage1() {
+      // move player
+      let dx = 0;
+      if (keys['ArrowLeft'] || keys['a']) dx -= 1;
+      if (keys['ArrowRight'] || keys['d']) dx += 1;
+      moon.player1.x += dx * moon.player1.speed;
+      if (moon.player1.x < 20) moon.player1.x = 20;
+      if (moon.player1.x + moon.player1.w > WIDTH - 20) moon.player1.x = WIDTH - 20 - moon.player1.w;
+
+      // shooting
+      if (moon.shotCooldown > 0) moon.shotCooldown--;
+      if ((keys['k'] || keys['K'] || keys[' ']) && moon.shotCooldown === 0 && !moon.stage1Done) {
+        moon.bullets.push({
+          x: moon.player1.x + moon.player1.w / 2 - 3,
+          y: moon.player1.y,
+          w: 6, h: 10, vy: -4
+        });
+        moon.shotCooldown = 25;
+      }
+
+      // move bullets
+      for (let i = moon.bullets.length - 1; i >= 0; i--) {
+        moon.bullets[i].y += moon.bullets[i].vy;
+        if (moon.bullets[i].y + moon.bullets[i].h < 0) moon.bullets.splice(i, 1);
+      }
+
+      // bullet-dragon
+      const dBox = { x: moon.dragon1.x, y: moon.dragon1.y, w: moon.dragon1.w, h: moon.dragon1.h };
+      for (let i = moon.bullets.length - 1; i >= 0; i--) {
+        if (!moon.stage1Done && rectsOverlap(moon.bullets[i], dBox)) {
+          moon.dragon1.hp = Math.max(0, moon.dragon1.hp - 1);
+          moon.dragon1.hitFlash = 6;
+          moon.bullets.splice(i, 1);
+        }
+      }
+      if (moon.dragon1.hitFlash > 0) moon.dragon1.hitFlash--;
+
+      // dragon patterns
+      if (!moon.stage1Done && moon.dragon1.hp > 0) {
+        moon.dragon1.phaseTimer++;
+        if (moon.dragon1.phase === 'rain') {
+          if (moon.dragon1.phaseTimer === 1) {
+            moon.warnings.length = 0;
+            const cols = [];
+            while (cols.length < 4) {
+              const c = Math.floor(Math.random() * 8);
+              if (!cols.includes(c)) cols.push(c);
+            }
+            for (const c of cols) {
+              const cx = 60 + c * 60;
+              moon.warnings.push({ x: cx, y: HEIGHT - 60, r: 10, timer: 40 });
+            }
+          }
+          if (moon.dragon1.phaseTimer === 40) {
+            for (const w of moon.warnings) {
+              moon.shots.push({
+                x: w.x, y: moon.dragon1.y + moon.dragon1.h,
+                r: 8, vx: 0, vy: 2.5
+              });
+            }
+            moon.warnings.length = 0;
+          }
+          if (moon.dragon1.phaseTimer > 160) {
+            moon.dragon1.phase = 'fan';
+            moon.dragon1.phaseTimer = 0;
+          }
+        } else if (moon.dragon1.phase === 'fan') {
+          if (moon.dragon1.phaseTimer === 1 || moon.dragon1.phaseTimer === 40 || moon.dragon1.phaseTimer === 80) {
+            const cx = moon.dragon1.x + moon.dragon1.w / 2;
+            const cy = moon.dragon1.y + moon.dragon1.h;
+            const pattern = [
+              { vx: -1.5, vy: 2.4 },
+              { vx: -0.7, vy: 2.8 },
+              { vx:  0.7, vy: 2.8 },
+              { vx:  1.5, vy: 2.4 }
+            ];
+            for (const dir of pattern) {
+              moon.shots.push({ x: cx, y: cy, r: 7, vx: dir.vx, vy: dir.vy });
+            }
+          }
+          if (moon.dragon1.phaseTimer > 140) {
+            moon.dragon1.phase = 'rain';
+            moon.dragon1.phaseTimer = 0;
+          }
+        }
+      }
+
+      // update shots
+      for (let i = moon.shots.length - 1; i >= 0; i--) {
+        moon.shots[i].x += moon.shots[i].vx;
+        moon.shots[i].y += moon.shots[i].vy;
+        if (moon.shots[i].y - moon.shots[i].r > HEIGHT) moon.shots.splice(i, 1);
+      }
+
+      // hit player
+      const pBox = { x: moon.player1.x, y: moon.player1.y, w: moon.player1.w, h: moon.player1.h };
+      for (let i = moon.shots.length - 1; i >= 0; i--) {
+        const s = moon.shots[i];
+        const sb = { x: s.x - s.r, y: s.y - s.r, w: s.r * 2, h: s.r * 2 };
+        if (!moon.stage1Done && rectsOverlap(sb, pBox)) {
+          moon.player1.hp = Math.max(0, moon.player1.hp - 1);
+          moon.shots.splice(i, 1);
+        }
+      }
+
+      // transitions
+      if (!moon.stage1Done && moon.dragon1.hp <= 0) {
+        moon.stage1Done = true;
+        startMoonStage2();
+      }
+      if (moon.player1.hp <= 0 && moon.substate === 'stage1') {
+        moon.lastSubstate = 'stage1';
+        moon.substate = 'lose';
+      }
+    }
+
+    function drawMoonStage1() {
+      ctx.fillStyle = '#000814';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      // stars + moon
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 60; i++) {
+        const sx = (i * 37) % WIDTH;
+        const sy = (i * 53) % (HEIGHT - 100);
+        ctx.fillRect(sx, sy, 2, 2);
+      }
+      ctx.fillStyle = '#0077b6';
+      ctx.beginPath();
+      ctx.arc(80, 80, 30, 0, Math.PI * 2);
+      ctx.fill();
+
+      // dragon
+      ctx.save();
+      if (moon.dragon1.hitFlash > 0) ctx.fillStyle = '#ffffff';
+      else ctx.fillStyle = '#ff006e';
+      ctx.fillRect(moon.dragon1.x, moon.dragon1.y, moon.dragon1.w, moon.dragon1.h);
+      ctx.fillRect(moon.dragon1.x + moon.dragon1.w - 40, moon.dragon1.y - 20, 40, 40);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(moon.dragon1.x + moon.dragon1.w - 26, moon.dragon1.y - 8, 10, 10);
+      ctx.fillStyle = (moon.dragon1.phase === 'rain') ? '#f9c74f' : '#ffe66d';
+      ctx.fillRect(moon.dragon1.x + 30, moon.dragon1.y + 20, 20, 20);
+      ctx.restore();
+
+      // warnings
+      for (const w of moon.warnings) {
+        ctx.strokeStyle = '#ffdd00';
+        ctx.beginPath();
+        ctx.arc(w.x, w.y, w.r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // fireballs
+      for (const s of moon.shots) {
+        ctx.fillStyle = '#ff9f1c';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // player + bullets
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(moon.player1.x, moon.player1.y, moon.player1.w, moon.player1.h);
+      ctx.fillStyle = '#ff4b4b';
+      moon.bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
+
+      // HUD
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, 0, WIDTH, 40);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Stage 1: Move A/D or arrows | Shoot K or Space | Avoid fireballs.', 10, 20);
+      ctx.fillText(`HP: ${moon.player1.hp}`, 10, 36);
+      ctx.fillText('Dragon (Stage 1)', WIDTH - 200, 20);
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeRect(WIDTH - 200, 26, 140, 10);
+      ctx.fillStyle = '#ff006e';
+      ctx.fillRect(WIDTH - 200, 26, 140 * (moon.dragon1.hp / moon.dragon1.maxHp), 10);
+    }
+
+    // Stage 2 update/draw
+    function updateMoonStage2() {
+      const p = moon.player2;
+      const d = moon.dragon2;
+
+      // horiz move
+      p.vx = 0;
+      if (keys['ArrowLeft'] || keys['a']) p.vx = -p.speed;
+      if (keys['ArrowRight'] || keys['d']) p.vx = p.speed;
+      p.x += p.vx;
+      if (p.x < 20) p.x = 20;
+      if (p.x + p.w > WIDTH - 20) p.x = WIDTH - 20 - p.w;
+
+      // gravity & jump
+      p.vy += 0.3;
+      p.y += p.vy;
+      if (p.y + p.h > HEIGHT - 40) {
+        p.y = HEIGHT - 40 - p.h;
+        p.vy = 0;
+        p.onGround = true;
+      } else p.onGround = false;
+      if ((keys['w'] || keys['ArrowUp'] || keys[' ']) && p.onGround) {
+        p.vy = -5;
+        p.onGround = false;
+      }
+
+      // punch
+      if (moon.punchCooldown > 0) moon.punchCooldown--;
+      if ((keys['j'] || keys['J']) && moon.punchCooldown === 0) {
+        moon.punchCooldown = 20;
+        const punchBox = { x: p.x + p.w, y: p.y, w: 20, h: p.h };
+        const dBox = { x: d.x, y: d.y, w: d.w, h: d.h };
+        if (rectsOverlap(punchBox, dBox)) {
+          d.hp = Math.max(0, d.hp - 1);
+          d.hitFlash = 6;
+        }
+      }
+      if (d.hitFlash > 0) d.hitFlash--;
+
+      // dragon AI
+      d.phaseTimer++;
+      const pBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+      const dist = (d.x) - (p.x + p.w);
+      if (d.hp > 0) {
+        if (d.phase === 'approach') {
+          if (dist > 60) d.x -= 1.0;
+          if (d.phaseTimer > 90 || dist <= 60) {
+            d.phase = 'swipe';
+            d.phaseTimer = 0;
+          }
+        } else if (d.phase === 'swipe') {
+          if (d.phaseTimer === 40) {
+            const swipeBox = { x: d.x - 40, y: d.y, w: 40, h: d.h };
+            if (rectsOverlap(pBox, swipeBox)) {
+              p.hp = Math.max(0, p.hp - 1);
+            }
+          }
+          if (d.phaseTimer > 80) {
+            d.phase = 'approach';
+            d.phaseTimer = 0;
+          }
+        }
+      }
+
+      // end conditions
+      if (d.hp <= 0 && state === 'moon_boss') {
+        initWishScene();
+        state = "wish_scene";
+        return;
+      }
+      if (p.hp <= 0 && state === 'moon_boss') {
+        moon.lastSubstate = 'stage2';
+        moon.substate = 'lose';
+      }
+    }
+
+    function drawMoonStage2() {
+      ctx.fillStyle = '#1b1f33';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#5c677d';
+      ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
+
+      // player
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(moon.player2.x, moon.player2.y, moon.player2.w, moon.player2.h);
+
+      // dragon
+      const d = moon.dragon2;
+      ctx.save();
+      if (d.hitFlash > 0) ctx.fillStyle = '#ffffff';
+      else ctx.fillStyle = '#ff006e';
+      ctx.fillRect(d.x, d.y, d.w, d.h);
+      ctx.fillRect(d.x + d.w - 40, d.y - 20, 40, 40);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(d.x + d.w - 26, d.y - 8, 10, 10);
+      ctx.restore();
+
+      // HUD
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, 0, WIDTH, 40);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Stage 2: Move A/D or arrows | Jump W/Up/Space | Punch J up close.', 10, 20);
+      ctx.fillText(`HP: ${moon.player2.hp}`, 10, 36);
+      ctx.fillText('Dragon (Stage 2)', WIDTH - 200, 20);
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeRect(WIDTH - 200, 26, 140, 10);
+      ctx.fillStyle = '#ff006e';
+      ctx.fillRect(WIDTH - 200, 26, 140 * (moon.dragon2.hp / moon.dragon2.maxHp), 10);
+    }
+
+    // ---------- LEVEL 5: WISH SCENE ----------
+    function initWishScene() {
+      house2.phase = "post_burger";
+      house2.feedingStep = 0;
+    }
+
+    function drawWishScene() {
+      ctx.fillStyle = '#120826';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#2f3b4f';
+      ctx.fillRect(40, 260, WIDTH - 80, 160);
+      ctx.fillStyle = '#8b5a2b';
+      ctx.fillRect(280, 260, 80, 60);
+
+      // you
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(300, 300, 24, 40);
+
+      // garfield tiny
+      ctx.fillStyle = '#ffba66';
+      ctx.fillRect(300, 340, 24, 24);
+
+      // collar star
+      ctx.fillStyle = '#ffe66d';
+      ctx.fillRect(310, 332, 8, 8);
+
+      // charm
+      ctx.fillStyle = '#ffba66';
+      ctx.fillRect(326, 344, 12, 12);
+
+      // hearts
+      ctx.fillStyle = '#ff006e';
+      ctx.fillRect(260, 260, 8, 8);
+      ctx.fillRect(360, 260, 8, 8);
+
+      let text = '';
+      if (house2.feedingStep === 0) {
+        text = 'A soft light fills the room. Garfield\'s shape stretches and shifts... until it looks like you.';
+      } else if (house2.feedingStep === 1) {
+        text = 'The Wish Collar settles around your neck as a small charm. Garfield appears as a tiny cat on your shoulder.';
+      } else if (house2.feedingStep === 2) {
+        text = '"I\'ve been with you this whole journey..."';
+      } else if (house2.feedingStep === 3) {
+        text = '"This Wish Star could grant anything in the world."';
+      } else if (house2.feedingStep === 4) {
+        text = '"But my only wish... has always been you."';
+      } else if (house2.feedingStep === 5) {
+        text = 'Hearts float up around you both. The collar glows, waiting for your answer.';
+      } else {
+        text = 'Make your wish.\n\n(Here, your real message appears: "Will you keep building this world with me?" / "Will you be my Valentine forever?" / "Will you marry me?")';
+      }
+      drawDialogueBox(text);
+    }
+
+    // ---------- INPUT + MAIN LOOP ----------
     window.addEventListener('keydown', e => {
       keys[e.key] = true;
 
@@ -437,13 +1823,11 @@
           lilyInteract();
           return;
         }
-
         let dx = 0, dy = 0;
         if (e.key === 'ArrowLeft' || e.key === 'a')        dx = -1;
         else if (e.key === 'ArrowRight' || e.key === 'd')  dx = 1;
         else if (e.key === 'ArrowUp' || e.key === 'w')     dy = -1;
         else if (e.key === 'ArrowDown' || e.key === 's')   dy = 1;
-
         if (dx !== 0 || dy !== 0) {
           const nx = lily.player.x + dx;
           const ny = lily.player.y + dy;
@@ -461,6 +1845,61 @@
           p.vy = -jungle.jumpStrength;
           p.onGround = false;
         }
+      } else if (state === "house2") {
+        if (e.key === 'ArrowLeft' || e.key === 'a')        moveHouse2Player(-1, 0);
+        else if (e.key === 'ArrowRight' || e.key === 'd')  moveHouse2Player(1, 0);
+        else if (e.key === 'ArrowUp' || e.key === 'w')     moveHouse2Player(0, -1);
+        else if (e.key === 'ArrowDown' || e.key === 's')   moveHouse2Player(0, 1);
+        house2Interact(e.key);
+      } else if (state === "hub2") {
+        if (e.key === 'ArrowLeft' || e.key === 'a')        moveHub2Player(-1, 0);
+        else if (e.key === 'ArrowRight' || e.key === 'd')  moveHub2Player(1, 0);
+        else if (e.key === 'ArrowUp' || e.key === 'w')     moveHub2Player(0, -1);
+        else if (e.key === 'ArrowDown' || e.key === 's')   moveHub2Player(0, 1);
+        if (e.key === ' ' || e.key === 'Enter' || e.key.toLowerCase() === 'e') {
+          hub2Interact(e.key);
+        }
+      } else if (state === "taco") {
+        tacoInteract(e.key);
+      } else if (state === "sushi") {
+        sushiInteract(e.key);
+      } else if (state === "dessert") {
+        dessertInteract(e.key);
+      } else if (state === "house3") {
+        if (house3.phase !== "post_burger") {
+          if (e.key === 'ArrowLeft' || e.key === 'a')        moveHouse3Player(-1, 0);
+          else if (e.key === 'ArrowRight' || e.key === 'd')  moveHouse3Player(1, 0);
+          else if (e.key === 'ArrowUp' || e.key === 'w')     moveHouse3Player(0, -1);
+          else if (e.key === 'ArrowDown' || e.key === 's')   moveHouse3Player(0, 1);
+          house3Interact(e.key);
+        } else {
+          if (e.key === ' ' || e.key === 'Enter' || e.key.toLowerCase() === 'e') {
+            house2.feedingStep += 1;
+            if (house2.feedingStep > 5) {
+              initShipBuild();
+              state = "ship_build";
+            }
+          }
+        }
+      } else if (state === "undersea") {
+        if (e.key === ' ' || e.key === 'Enter' || e.key.toLowerCase() === 'e') {
+          underseaInteract(e.key);
+        }
+      } else if (state === "ship_build") {
+        if (e.key === 'ArrowLeft' || e.key === 'a')        moveShipBuildPlayer(-1, 0);
+        else if (e.key === 'ArrowRight' || e.key === 'd')  moveShipBuildPlayer(1, 0);
+        else if (e.key === 'ArrowUp' || e.key === 'w')     moveShipBuildPlayer(0, -1);
+        else if (e.key === 'ArrowDown' || e.key === 's')   moveShipBuildPlayer(0, 1);
+        shipBuildInteract(e.key);
+      } else if (state === "moon_boss") {
+        // Two-stage boss handles input via keys[] polling; only special case is retry
+        moonBossInteract(e.key);
+      } else if (state === "wish_scene") {
+        if (e.key === ' ' || e.key === 'Enter' || e.key.toLowerCase() === 'e') {
+          house2.feedingStep += 1;
+        }
+      } else if (state === "ship_launch") {
+        // auto cutscene
       }
     });
 
@@ -468,16 +1907,33 @@
       keys[e.key] = false;
     });
 
-    // ---------- MAIN LOOP ----------
     function update() {
       if (state === "lily") updateLily();
       else if (state === "jungle") updateJungle();
+      else if (state === "house2") updateHouse2();
+      else if (state === "undersea") updateUndersea();
+      else if (state === "ship_launch") updateShipLaunch();
+      else if (state === "moon_boss") updateMoonBoss();
     }
 
     function draw() {
       ctx.clearRect(0, 0, WIDTH, HEIGHT);
       if (state === "lily") drawLily();
       else if (state === "jungle") drawJungle();
+      else if (state === "house2") drawHouse2();
+      else if (state === "hub2") drawHub2();
+      else if (state === "taco") drawTaco();
+      else if (state === "sushi") drawSushi();
+      else if (state === "dessert") drawDessert();
+      else if (state === "house3") {
+        if (house3.phase !== "post_burger") drawHouse3();
+        else drawHouse3PostBurger();
+      }
+      else if (state === "undersea") drawUndersea();
+      else if (state === "ship_build") drawShipBuild();
+      else if (state === "ship_launch") drawShipLaunch();
+      else if (state === "moon_boss") drawMoonBoss();
+      else if (state === "wish_scene") drawWishScene();
     }
 
     function loop() {
