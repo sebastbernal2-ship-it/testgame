@@ -30,10 +30,19 @@
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
 
-    const TILE = 32;
-    const COLS = canvas.width / TILE;   // 20
-    const ROWS = canvas.height / TILE;  // 15
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
 
+    const TILE = 32;
+    const COLS = WIDTH / TILE;   // 20
+    const ROWS = HEIGHT / TILE;  // 15
+
+    // Global state
+    let state = "lily"; // "lily" or "jungle"
+
+    const keys = {};
+
+    // ---------- LILY LEVEL DATA ----------
     const TILE_GRASS   = 0;
     const TILE_WATER   = 1;
     const TILE_LILYPAD = 2;
@@ -41,66 +50,83 @@
     const TILE_LILY    = 4;
     const TILE_TARGET  = 5;
 
-    const map = [];
-    for (let y = 0; y < ROWS; y++) {
-      map[y] = [];
-      for (let x = 0; x < COLS; x++) {
-        map[y][x] = TILE_GRASS;
+    const lily = {
+      map: [],
+      player: { x: 7, y: 10 },
+      liliesCollected: 0,
+      liliesPlaced: 0,
+      totalTargets: 0,
+      bird: { spawned: false, x: 10, y: 11, talking: false }
+    };
+
+    function initLily() {
+      // Base grass
+      lily.map = [];
+      for (let y = 0; y < ROWS; y++) {
+        lily.map[y] = [];
+        for (let x = 0; x < COLS; x++) {
+          lily.map[y][x] = TILE_GRASS;
+        }
       }
-    }
 
-    // Pond area
-    for (let y = 7; y <= 11; y++) {
-      for (let x = 5; x <= 14; x++) {
-        map[y][x] = TILE_WATER;
+      // Pond
+      for (let y = 7; y <= 11; y++) {
+        for (let x = 5; x <= 14; x++) {
+          lily.map[y][x] = TILE_WATER;
+        }
       }
-    }
 
-    // Island
-    for (let x = 8; x <= 11; x++) {
-      map[8][x]  = TILE_LILYPAD;
-      map[9][x]  = TILE_LILYPAD;
-      map[10][x] = TILE_LILYPAD;
-    }
-
-    // House strip
-    map[7][9]  = TILE_HOUSE;
-    map[7][10] = TILE_HOUSE;
-
-    // Bridge
-    for (let y = 6; y <= 10; y++) {
-      map[y][9] = TILE_LILYPAD;
-    }
-
-    const wildLilyPositions = [
-      [3, 8], [5, 5], [6, 12],
-      [15, 6], [16, 10], [13, 13]
-    ];
-    for (const [x, y] of wildLilyPositions) {
-      map[y][x] = TILE_LILY;
-    }
-
-    const targetPositions = [
-      [8, 9], [9, 9], [10, 9], [11, 9],
-      [8, 10], [11, 10]
-    ];
-    for (const [x, y] of targetPositions) {
-      if (map[y][x] === TILE_LILYPAD || map[y][x] === TILE_GRASS) {
-        map[y][x] = TILE_TARGET;
+      // Island
+      for (let x = 8; x <= 11; x++) {
+        lily.map[8][x]  = TILE_LILYPAD;
+        lily.map[9][x]  = TILE_LILYPAD;
+        lily.map[10][x] = TILE_LILYPAD;
       }
+
+      // House
+      lily.map[7][9]  = TILE_HOUSE;
+      lily.map[7][10] = TILE_HOUSE;
+
+      // Bridge
+      for (let y = 6; y <= 10; y++) {
+        lily.map[y][9] = TILE_LILYPAD;
+      }
+
+      // Wild lilies on grass
+      const wildLilyPositions = [
+        [3, 8], [5, 5], [6, 12],
+        [15, 6], [16, 10], [13, 13]
+      ];
+      for (const [x, y] of wildLilyPositions) {
+        lily.map[y][x] = TILE_LILY;
+      }
+
+      // Targets around house
+      const targetPositions = [
+        [8, 9], [9, 9], [10, 9], [11, 9],
+        [8, 10], [11, 10]
+      ];
+      lily.totalTargets = targetPositions.length;
+      lily.liliesPlaced = 0;
+      lily.liliesCollected = 0;
+
+      for (const [x, y] of targetPositions) {
+        if (lily.map[y][x] === TILE_LILYPAD || lily.map[y][x] === TILE_GRASS) {
+          lily.map[y][x] = TILE_TARGET;
+        }
+      }
+
+      lily.player.x = 7;
+      lily.player.y = 10;
+      lily.bird.spawned = false;
+      lily.bird.talking = false;
     }
 
-    let liliesCollected = 0;
-    const totalTargets = targetPositions.length;
-    let liliesPlaced = 0;
-
-    const player = { x: 7, y: 10 };
-
-    function insideBounds(nx, ny) {
+    function lilyInsideBounds(nx, ny) {
       return nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS;
     }
 
-    function isWalkable(tile) {
+    function lilyIsWalkable(tile) {
       return (
         tile === TILE_GRASS ||
         tile === TILE_LILYPAD ||
@@ -109,78 +135,58 @@
       );
     }
 
-    // Angry Bird NPC
-    let birdSpawned = false;
-    const bird = { x: 10, y: 11, talking: false };
-
-    function isAdjacentToBird() {
-      if (!birdSpawned) return false;
-      const dx = Math.abs(player.x - bird.x);
-      const dy = Math.abs(player.y - bird.y);
-      return dx + dy === 1; // orthogonal neighbor
+    function lilyIsAdjacentToBird() {
+      if (!lily.bird.spawned) return false;
+      const dx = Math.abs(lily.player.x - lily.bird.x);
+      const dy = Math.abs(lily.player.y - lily.bird.y);
+      return dx + dy === 1;
     }
 
-    function interact() {
-      const x = player.x;
-      const y = player.y;
-      const tile = map[y][x];
+    function lilyInteract() {
+      const x = lily.player.x;
+      const y = lily.player.y;
+      const tile = lily.map[y][x];
 
-      // Talk to bird if adjacent and spawned
-      if (birdSpawned && isAdjacentToBird()) {
-        bird.talking = !bird.talking; // toggle dialog
-        return;
-      }
-
-      // If dialog is open and you press interact again, close it
-      if (bird.talking) {
-        bird.talking = false;
-        return;
-      }
-
-      // Lilies
-      if (tile === TILE_LILY) {
-        liliesCollected += 1;
-        map[y][x] = TILE_GRASS;
-      } else if (tile === TILE_TARGET && liliesCollected > 0) {
-        liliesCollected -= 1;
-        liliesPlaced += 1;
-        map[y][x] = TILE_LILY;
-      }
-
-      // Spawn bird when all spots filled
-      if (!birdSpawned && liliesPlaced === totalTargets) {
-        birdSpawned = true;
-      }
-    }
-
-    window.addEventListener('keydown', e => {
-      if (e.key === ' ' || e.key === 'Enter' || e.key === 'e' || e.key === 'E') {
-        interact();
-        return;
-      }
-
-      let dx = 0, dy = 0;
-      if (e.key === 'ArrowLeft' || e.key === 'a')        dx = -1;
-      else if (e.key === 'ArrowRight' || e.key === 'd')  dx = 1;
-      else if (e.key === 'ArrowUp' || e.key === 'w')     dy = -1;
-      else if (e.key === 'ArrowDown' || e.key === 's')   dy = 1;
-
-      if (dx !== 0 || dy !== 0) {
-        const nx = player.x + dx;
-        const ny = player.y + dy;
-        if (insideBounds(nx, ny) && isWalkable(map[ny][nx])) {
-          player.x = nx;
-          player.y = ny;
+      // Bird dialog / transition
+      if (lily.bird.spawned && lilyIsAdjacentToBird()) {
+        if (!lily.bird.talking) {
+          lily.bird.talking = true;
+        } else {
+          lily.bird.talking = false;
+          startJungleLevel();
         }
+        return;
       }
-    });
 
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (lily.bird.talking) {
+        lily.bird.talking = false;
+        return;
+      }
 
+      // Lily pickup / placement
+      if (tile === TILE_LILY) {
+        lily.liliesCollected += 1;
+        lily.map[y][x] = TILE_GRASS;
+      } else if (tile === TILE_TARGET && lily.liliesCollected > 0) {
+        lily.liliesCollected -= 1;
+        lily.liliesPlaced += 1;
+        lily.map[y][x] = TILE_LILY;
+      }
+
+      // Spawn bird
+      if (!lily.bird.spawned && lily.liliesPlaced === lily.totalTargets) {
+        lily.bird.spawned = true;
+      }
+    }
+
+    function updateLily() {
+      // Movement is handled per keypress in keydown to keep it tile-by-tile
+    }
+
+    function drawLily() {
       for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
-          const tile = map[y][x];
+          const tile = lily.map[y][x];
           if (tile === TILE_GRASS) {
             ctx.fillStyle = '#2f9e44';
           } else if (tile === TILE_WATER) {
@@ -200,37 +206,34 @@
 
       // Player
       ctx.fillStyle = '#ffd35a';
-      ctx.fillRect(player.x * TILE, player.y * TILE, TILE, TILE);
+      ctx.fillRect(lily.player.x * TILE, lily.player.y * TILE, TILE, TILE);
 
-      // Angry Bird NPC
-      if (birdSpawned) {
-        ctx.fillStyle = '#ff4b4b'; // red bird
-        ctx.fillRect(bird.x * TILE, bird.y * TILE, TILE, TILE);
+      // Bird
+      if (lily.bird.spawned) {
+        ctx.fillStyle = '#ff4b4b';
+        ctx.fillRect(lily.bird.x * TILE, lily.bird.y * TILE, TILE, TILE);
       }
 
       // HUD
       ctx.fillStyle = '#000000aa';
-      ctx.fillRect(0, 0, canvas.width, 50);
-
+      ctx.fillRect(0, 0, WIDTH, 50);
       ctx.fillStyle = '#ffffff';
       ctx.font = '14px sans-serif';
       ctx.fillText('Move: WASD / arrows | Interact: E / Space / Enter', 10, 18);
-      ctx.fillText(`Lilies in bag: ${liliesCollected} | Spots filled: ${liliesPlaced}/${totalTargets}`, 10, 36);
+      ctx.fillText(`Lilies in bag: ${lily.liliesCollected} | Spots filled: ${lily.liliesPlaced}/${lily.totalTargets}`, 10, 36);
 
-      if (birdSpawned && isAdjacentToBird() && !bird.talking) {
-        ctx.fillText('Press E / Space / Enter to talk to the bird', 10, canvas.height - 10);
+      if (lily.bird.spawned && lilyIsAdjacentToBird() && !lily.bird.talking) {
+        ctx.fillText('Press E / Space / Enter to talk to the bird', 10, HEIGHT - 10);
       }
 
-      // Bird dialog
-      if (bird.talking) {
-        const boxWidth = canvas.width - 40;
+      if (lily.bird.talking) {
+        const boxWidth = WIDTH - 40;
         const boxHeight = 70;
         const boxX = 20;
-        const boxY = canvas.height - boxHeight - 20;
+        const boxY = HEIGHT - boxHeight - 20;
 
         ctx.fillStyle = '#000000dd';
         ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-
         ctx.strokeStyle = '#ffffff';
         ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
 
@@ -238,14 +241,252 @@
         ctx.font = '14px sans-serif';
         ctx.fillText('Angry Bird: "Those monkeys stole my egg and hid it up in the jungle!"', boxX + 10, boxY + 24);
         ctx.fillText('Angry Bird: "Will you climb up and get it back for me?"', boxX + 10, boxY + 44);
-        ctx.fillText('(Press E / Space / Enter to close)', boxX + 10, boxY + 62);
+        ctx.fillText('(Press E / Space / Enter to begin the climb)', boxX + 10, boxY + 62);
       }
     }
 
+    // ---------- JUNGLE LEVEL DATA ----------
+    const jungle = {
+      player: { x: 80, y: 400, vx: 0, vy: 0, w: 24, h: 32, onGround: false },
+      platforms: [],
+      coconuts: [],
+      gravity: 0.1,
+      moveSpeed: 2.2,
+      jumpStrength: 6.0,
+      hasEgg: false,
+      nest: { x: 520, y: 80, w: 40, h: 20 }
+    };
+
+    function initJungle() {
+      jungle.player = { x: 80, y: 400, vx: 0, vy: 0, w: 24, h: 32, onGround: false };
+      jungle.platforms = [
+        { x: 40,  y: 430, w: 200, h: 20 },
+        { x: 260, y: 360, w: 120, h: 20 },
+        { x: 140, y: 300, w: 120, h: 20 },
+        { x: 300, y: 240, w: 120, h: 20 },
+        { x: 200, y: 180, w: 120, h: 20 },
+        { x: 380, y: 120, w: 120, h: 20 }
+      ];
+      jungle.coconuts = [];
+      jungle.hasEgg = false;
+      jungle.nest = { x: 520, y: 80, w: 40, h: 20 };
+      coconutTimer = 0;
+    }
+
+    function startJungleLevel() {
+      initJungle();
+      state = "jungle";
+    }
+
+    function rectsOverlap(a, b) {
+      return (
+        a.x < b.x + b.w &&
+        a.x + a.w > b.x &&
+        a.y < b.y + b.h &&
+        a.y + a.h > b.y
+      );
+    }
+
+    let coconutTimer = 0;
+
+    function updateJungle() {
+      const p = jungle.player;
+
+      // Horizontal movement from keys
+      p.vx = 0;
+      if (keys['ArrowLeft'] || keys['a'])  p.vx = -jungle.moveSpeed;
+      if (keys['ArrowRight'] || keys['d']) p.vx =  jungle.moveSpeed;
+
+      // Gravity
+      p.vy += jungle.gravity;
+
+      // Integrate X
+      p.x += p.vx;
+      for (const plat of jungle.platforms) {
+        const playerBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+        if (rectsOverlap(playerBox, plat)) {
+          if (p.vx > 0) p.x = plat.x - p.w;
+          if (p.vx < 0) p.x = plat.x + plat.w;
+          p.vx = 0;
+        }
+      }
+
+      // Integrate Y
+      p.y += p.vy;
+      p.onGround = false;
+      for (const plat of jungle.platforms) {
+        const playerBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+        if (rectsOverlap(playerBox, plat)) {
+          if (p.vy > 0) {
+            p.y = plat.y - p.h;
+            p.vy = 0;
+            p.onGround = true;
+          } else if (p.vy < 0) {
+            p.y = plat.y + plat.h;
+            p.vy = 0;
+          }
+        }
+      }
+
+      // Bounds
+      if (p.y + p.h > HEIGHT) {
+        p.x = 80;
+        p.y = 400;
+        p.vx = 0;
+        p.vy = 0;
+      }
+      if (p.y < 0) p.y = 0;
+
+      // Coconut spawning
+      coconutTimer += 1;
+      if (coconutTimer > 120) {
+        coconutTimer = 0;
+        jungle.coconuts.push({
+          x: Math.random()*(WIDTH - 20)+10,
+          y: -10,
+          vx: 0,
+          vy: 2,
+          r: 8
+        });
+      }
+
+      // Update coconuts
+      for (const c of jungle.coconuts) {
+        c.y += c.vy;
+      }
+      jungle.coconuts = jungle.coconuts.filter(c => c.y + c.r < HEIGHT);
+
+      // Coconut collision
+      for (const c of jungle.coconuts) {
+        const coconutBox = { x: c.x - c.r, y: c.y - c.r, w: c.r * 2, h: c.r * 2 };
+        const playerBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+        if (rectsOverlap(playerBox, coconutBox)) {
+          p.x = 80;
+          p.y = 400;
+          p.vx = 0;
+          p.vy = 0;
+          break;
+        }
+      }
+
+      // Nest check
+      const playerBox = { x: p.x, y: p.y, w: p.w, h: p.h };
+      if (rectsOverlap(playerBox, jungle.nest)) {
+        jungle.hasEgg = true;
+      }
+    }
+
+    function jungleInteract() {
+      // no special use yet
+    }
+
+    function drawJungle() {
+      ctx.fillStyle = '#0b1321';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      // Tree trunk
+      ctx.fillStyle = '#5a3c1a';
+      ctx.fillRect(300, 0, 40, HEIGHT);
+
+      // Platforms
+      ctx.fillStyle = '#3b3b2b';
+      for (const plat of jungle.platforms) {
+        ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+      }
+
+      // Nest
+      ctx.fillStyle = '#8b5a2b';
+      ctx.fillRect(jungle.nest.x, jungle.nest.y, jungle.nest.w, jungle.nest.h);
+      ctx.fillStyle = '#fce38a';
+      ctx.fillRect(jungle.nest.x + 10, jungle.nest.y - 12, 20, 12);
+
+      // Player
+      const p = jungle.player;
+      ctx.fillStyle = '#ffd35a';
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+
+      // Coconuts
+      ctx.fillStyle = '#8b4513';
+      for (const c of jungle.coconuts) {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // HUD
+      ctx.fillStyle = '#000000aa';
+      ctx.fillRect(0, 0, WIDTH, 40);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Jungle: A/D or arrows to move, W/Up/Space to jump.', 10, 18);
+
+      if (jungle.hasEgg) {
+        ctx.fillStyle = '#000000aa';
+        ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('You reached the egg! (Next: story continues at home.)', 10, HEIGHT - 18);
+      }
+    }
+
+    // ---------- INPUT HANDLERS ----------
+    window.addEventListener('keydown', e => {
+      keys[e.key] = true;
+
+      if (state === "lily") {
+        if (e.key === ' ' || e.key === 'Enter' || e.key.toLowerCase() === 'e') {
+          lilyInteract();
+          return;
+        }
+
+        let dx = 0, dy = 0;
+        if (e.key === 'ArrowLeft' || e.key === 'a')        dx = -1;
+        else if (e.key === 'ArrowRight' || e.key === 'd')  dx = 1;
+        else if (e.key === 'ArrowUp' || e.key === 'w')     dy = -1;
+        else if (e.key === 'ArrowDown' || e.key === 's')   dy = 1;
+
+        if (dx !== 0 || dy !== 0) {
+          const nx = lily.player.x + dx;
+          const ny = lily.player.y + dy;
+          if (lilyInsideBounds(nx, ny) && lilyIsWalkable(lily.map[ny][nx])) {
+            lily.player.x = nx;
+            lily.player.y = ny;
+          }
+        }
+      } else if (state === "jungle") {
+        if (e.key === ' ' || e.key === 'Enter' || e.key.toLowerCase() === 'e') {
+          jungleInteract();
+        }
+        const p = jungle.player;
+        if ((e.key === 'w' || e.key === 'ArrowUp' || e.key === ' ') && p.onGround) {
+          p.vy = -jungle.jumpStrength;
+          p.onGround = false;
+        }
+      }
+    });
+
+    window.addEventListener('keyup', e => {
+      keys[e.key] = false;
+    });
+
+    // ---------- MAIN LOOP ----------
+    function update() {
+      if (state === "lily") updateLily();
+      else if (state === "jungle") updateJungle();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+      if (state === "lily") drawLily();
+      else if (state === "jungle") drawJungle();
+    }
+
     function loop() {
+      update();
       draw();
       requestAnimationFrame(loop);
     }
+
+    initLily();
     requestAnimationFrame(loop);
   </script>
 </body>
