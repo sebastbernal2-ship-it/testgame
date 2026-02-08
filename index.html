@@ -41,12 +41,10 @@
     const TILE_LILY    = 4;
     const TILE_TARGET  = 5;
 
-    // Build base map
     const map = [];
     for (let y = 0; y < ROWS; y++) {
       map[y] = [];
       for (let x = 0; x < COLS; x++) {
-        // Default grass
         map[y][x] = TILE_GRASS;
       }
     }
@@ -58,24 +56,22 @@
       }
     }
 
-    // Island (lilypad) in middle of pond
+    // Island
     for (let x = 8; x <= 11; x++) {
-      map[8][x] = TILE_LILYPAD;
-      map[9][x] = TILE_LILYPAD;
+      map[8][x]  = TILE_LILYPAD;
+      map[9][x]  = TILE_LILYPAD;
       map[10][x] = TILE_LILYPAD;
     }
 
-    // House strip on island
+    // House strip
     map[7][9]  = TILE_HOUSE;
     map[7][10] = TILE_HOUSE;
 
-    // Bridge from grass to island (lilypad tiles)
-    // vertical bridge at x = 9 from y = 6 down to y = 10
+    // Bridge
     for (let y = 6; y <= 10; y++) {
       map[y][9] = TILE_LILYPAD;
     }
 
-    // Wild lilies on grass side (left/right)
     const wildLilyPositions = [
       [3, 8], [5, 5], [6, 12],
       [15, 6], [16, 10], [13, 13]
@@ -84,7 +80,6 @@
       map[y][x] = TILE_LILY;
     }
 
-    // Target spots on island around house
     const targetPositions = [
       [8, 9], [9, 9], [10, 9], [11, 9],
       [8, 10], [11, 10]
@@ -99,19 +94,30 @@
     const totalTargets = targetPositions.length;
     let liliesPlaced = 0;
 
-    // Player starts on grass near the bridge
-    const player = {
-      x: 7,
-      y: 10
-    };
+    const player = { x: 7, y: 10 };
 
     function insideBounds(nx, ny) {
       return nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS;
     }
 
     function isWalkable(tile) {
-      // Can walk on grass and lilypad; not on water or house
-      return tile === TILE_GRASS || tile === TILE_LILYPAD || tile === TILE_LILY || tile === TILE_TARGET;
+      return (
+        tile === TILE_GRASS ||
+        tile === TILE_LILYPAD ||
+        tile === TILE_LILY ||
+        tile === TILE_TARGET
+      );
+    }
+
+    // Angry Bird NPC
+    let birdSpawned = false;
+    const bird = { x: 10, y: 11, talking: false };
+
+    function isAdjacentToBird() {
+      if (!birdSpawned) return false;
+      const dx = Math.abs(player.x - bird.x);
+      const dy = Math.abs(player.y - bird.y);
+      return dx + dy === 1; // orthogonal neighbor
     }
 
     function interact() {
@@ -119,6 +125,19 @@
       const y = player.y;
       const tile = map[y][x];
 
+      // Talk to bird if adjacent and spawned
+      if (birdSpawned && isAdjacentToBird()) {
+        bird.talking = !bird.talking; // toggle dialog
+        return;
+      }
+
+      // If dialog is open and you press interact again, close it
+      if (bird.talking) {
+        bird.talking = false;
+        return;
+      }
+
+      // Lilies
       if (tile === TILE_LILY) {
         liliesCollected += 1;
         map[y][x] = TILE_GRASS;
@@ -126,6 +145,11 @@
         liliesCollected -= 1;
         liliesPlaced += 1;
         map[y][x] = TILE_LILY;
+      }
+
+      // Spawn bird when all spots filled
+      if (!birdSpawned && liliesPlaced === totalTargets) {
+        birdSpawned = true;
       }
     }
 
@@ -178,14 +202,44 @@
       ctx.fillStyle = '#ffd35a';
       ctx.fillRect(player.x * TILE, player.y * TILE, TILE, TILE);
 
+      // Angry Bird NPC
+      if (birdSpawned) {
+        ctx.fillStyle = '#ff4b4b'; // red bird
+        ctx.fillRect(bird.x * TILE, bird.y * TILE, TILE, TILE);
+      }
+
       // HUD
       ctx.fillStyle = '#000000aa';
-      ctx.fillRect(0, 0, canvas.width, 40);
+      ctx.fillRect(0, 0, canvas.width, 50);
 
       ctx.fillStyle = '#ffffff';
       ctx.font = '14px sans-serif';
-      ctx.fillText('Move with WASD / arrows. Press E / Space / Enter to pick/place lilies.', 10, 18);
-      ctx.fillText(`Lilies in bag: ${liliesCollected} | Spots filled: ${liliesPlaced}/${totalTargets}`, 10, 34);
+      ctx.fillText('Move: WASD / arrows | Interact: E / Space / Enter', 10, 18);
+      ctx.fillText(`Lilies in bag: ${liliesCollected} | Spots filled: ${liliesPlaced}/${totalTargets}`, 10, 36);
+
+      if (birdSpawned && isAdjacentToBird() && !bird.talking) {
+        ctx.fillText('Press E / Space / Enter to talk to the bird', 10, canvas.height - 10);
+      }
+
+      // Bird dialog
+      if (bird.talking) {
+        const boxWidth = canvas.width - 40;
+        const boxHeight = 70;
+        const boxX = 20;
+        const boxY = canvas.height - boxHeight - 20;
+
+        ctx.fillStyle = '#000000dd';
+        ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px sans-serif';
+        ctx.fillText('Angry Bird: "Those monkeys stole my egg and hid it up in the jungle!"', boxX + 10, boxY + 24);
+        ctx.fillText('Angry Bird: "Will you climb up and get it back for me?"', boxX + 10, boxY + 44);
+        ctx.fillText('(Press E / Space / Enter to close)', boxX + 10, boxY + 62);
+      }
     }
 
     function loop() {
