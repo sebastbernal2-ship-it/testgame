@@ -846,7 +846,7 @@
       } else if (house2.phase === "hatched") {
         if (key === ' ' || key === 'Enter' || key.toLowerCase() === 'e') house2.phase = "dialogue_choice";
       } else if (house2.phase === "dialogue_choice") {
-        if (key === '1' || key === '2') house2.phase = "done";
+        if (key === ' ' || key === 'Enter') house2.phase = "done";
       } else if (house2.phase === "done") {
         if (key === ' ' || key === 'Enter' || key.toLowerCase() === 'e') { initHub2(); state = "hub2"; }
       } else if (house2.phase === "feeding") {
