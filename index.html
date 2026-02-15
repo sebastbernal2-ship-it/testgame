@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Valentine Adventure — HQ, Heart Lilies, Undersea Zoom-Out, No-Cooldown Jump</title>
+  <title>Valentine Adventure — Mobile + Xbox + Input Test Gate</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <style>
     body {
       margin: 0;
@@ -13,32 +14,88 @@
       height: 100vh;
       color: #fff;
       font-family: sans-serif;
+      touch-action: none; /* reduce accidental scrolling */
     }
     #game {
       border: 4px solid #fff;
       image-rendering: pixelated;
       background: #1b2033;
+      touch-action: none; /* prevent scroll while touching canvas */
+    }
+    /* Mobile overlay controls */
+    #controls {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      gap: 12px;
+      pointer-events: auto;
+      z-index: 10;
+    }
+    .ctrl-group { display: flex; gap: 12px; }
+    button.ctrl {
+      width: 64px; height: 64px;
+      border-radius: 12px;
+      border: 1px solid #ffffff88;
+      background: #00000055;
+      color: #fff;
+      font-size: 20px;
+      backdrop-filter: blur(4px);
+      touch-action: none;
+    }
+    /* Hide controls on larger screens */
+    @media (min-width: 900px) {
+      #controls { display: none; }
     }
   </style>
 </head>
 <body>
-  <canvas id="game" width="768" height="576"></canvas>
+  <canvas id="game"></canvas>
+  <div id="controls">
+    <div class="ctrl-group">
+      <button class="ctrl" data-k="left">◀︎</button>
+      <button class="ctrl" data-k="up">▲</button>
+      <button class="ctrl" data-k="right">▶︎</button>
+    </div>
+    <div class="ctrl-group">
+      <button class="ctrl" data-k="e">E</button>
+    </div>
+  </div>
   <script>
     //#region Core: Canvas, scaling, state
     const LOGICAL_WIDTH = 768;
     const LOGICAL_HEIGHT = 576;
-    const SCALE = 4; // integer for crispness
+    let SCALE = 1; // dynamic integer scale for crisp pixels
+
     const canvas = document.getElementById('game');
-    canvas.width = LOGICAL_WIDTH * SCALE;
-    canvas.height = LOGICAL_HEIGHT * SCALE;
     const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    ctx.scale(SCALE, SCALE);
+
+    function computeScale() {
+      const vw = Math.max(320, window.innerWidth);
+      const vh = Math.max(240, window.innerHeight);
+      const maxScaleW = Math.floor(vw / LOGICAL_WIDTH);
+      const maxScaleH = Math.floor(vh / LOGICAL_HEIGHT);
+      const s = Math.max(1, Math.min(maxScaleW, maxScaleH));
+      if (s !== SCALE) {
+        SCALE = s;
+        canvas.width = LOGICAL_WIDTH * SCALE;
+        canvas.height = LOGICAL_HEIGHT * SCALE;
+        ctx.imageSmoothingEnabled = false;
+        ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+      }
+    }
+    window.addEventListener('resize', computeScale);
+    computeScale();
+
     const WIDTH = LOGICAL_WIDTH, HEIGHT = LOGICAL_HEIGHT;
     const TILE = 32, COLS = WIDTH / TILE, ROWS = HEIGHT / TILE;
-
-    let state = "lily"; // lily, jungle, house2, hub2, taco, sushi, dessert, house3, undersea, ship_build, ship_launch, moon_boss, wish_scene
+    let state = "input_test"; // start at spoiler-free input test
     const keys = {};
+    let gameStarted = false;
     //#endregion
 
     //#region Assets
@@ -120,7 +177,6 @@
       ship_part_canopy: 'ship_part_canopy.png',
       ship_part_wrapper: 'ship_part_wrapper.png',
       ship_part_jelly_fuel: 'ship_part_jelly_fuel.png',
-      spaceships_blue: 'spaceship_blue.png',
       spaceship_blue: 'spaceship_blue.png',
       thruster_flame: 'thruster_flame.png',
       starfield: 'starfield.png',
@@ -173,16 +229,14 @@
       wish_scene: 30.25
     };
     const scenePlayerScale = () => PLAYER_SCALE_BY_STATE[state] || 1.0;
-
     const BASE_PLAYER_H = 40;
     let CHARACTER_SCALE = 3.0;
     const WORLD_UNIT = () => Math.round(BASE_PLAYER_H * CHARACTER_SCALE);
     const LEVEL_WORLD_SCALE_BY_STATE = { undersea: 0.35 };
     const OBJECT_COLLISIONS_ENABLED = { undersea: false };
-
     const RELH = {
       player_side: 1.0, player_topdown: 1.0,
-      angry_bird: 0.9, garfield_tiny: 0.65, garfield_kitten: 0.85, garfield_prince: 0.,
+      angry_bird: 0.9, garfield_tiny: 0.65, garfield_kitten: 0.85, garfield_prince: 1.0,
       table: 0.65, cake_plate: 0.70, cake_bottom: 0.75, cake_middle: 0.65, cake_top: 0.55,
       sushi_red: 0.5, sushi_blue: 0.5, sushi_green: 0.5,
       plate_red: 0.55, plate_blue: 0.55, plate_green: 0.55,
@@ -288,13 +342,14 @@
       jump(){ beep(260,0.05,0.2,'triangle'); }
     };
     window.addEventListener('keydown', () => { if (AudioCtx && AudioCtx.state === 'suspended') AudioCtx.resume(); }, { once:true });
+    window.addEventListener('touchstart', () => { try { if (AudioCtx && AudioCtx.state === 'suspended') AudioCtx.resume(); } catch{} }, { once: true });
 
     // Background music manager (HTMLAudioElement + fades)
     const BGM = {
       audio: null,
       playWish(fadeMs=800){
         if (!this.audio){
-          const a = new Audio(ASSET_PATH + 'wish_romance.mp3'); // add this file to assets/
+          const a = new Audio(ASSET_PATH + 'wish_romance.mp3'); // include this file in assets/
           a.loop = true; a.volume = 0; this.audio = a;
         }
         const a = this.audio;
@@ -311,7 +366,6 @@
         const id = setInterval(()=>{ a.volume = Math.max(0, a.volume - dec); if (a.volume <= 0){ clearInterval(id); a.pause(); } }, 50);
       }
     };
-    // Ensure playback after a user gesture if the browser blocks it
     window.addEventListener('keydown', () => {
       if (state==='wish_scene' && BGM.audio && BGM.audio.paused) { BGM.audio.play().catch(()=>{}); }
     });
@@ -322,7 +376,7 @@
     function applyShake(){ if(SHK.t>0){ SHK.t--; const dx=(Math.random()*2-1)*SHK.mag; const dy=(Math.random()*2-1)*SHK.mag; ctx.translate(dx,dy); SHK.mag*=0.85; } }
     //#endregion
 
-    //#region Dev: jump directly to any level via URL hash or console
+    //#region Dev: jump via URL hash or console
     const LEVEL_INITS = {
       lily: initLily,
       jungle: initJungle,
@@ -353,10 +407,71 @@
     });
     //#endregion
 
-    //#region Level: Lily (free-move individual lilies + persistence; F4 edit, F5 save, F6 revert)
+    //#region Input Test (non-spoiler gate)
+    const inputTest = {
+      player: { x: WIDTH/2, y: HEIGHT/2, r: 12, speed: 3.2 },
+      moved: false,
+      gamepadSeen: false,
+      touchSeen: false
+    };
+    function initInputTest(){
+      inputTest.player.x = WIDTH/2;
+      inputTest.player.y = HEIGHT/2;
+      inputTest.moved = false;
+      inputTest.gamepadSeen = false;
+      inputTest.touchSeen = false;
+    }
+    function updateInputTest(){
+      const p = inputTest.player;
+      let dx = 0, dy = 0;
+      if (keys['ArrowLeft'] || keys['a']) dx -= 1;
+      if (keys['ArrowRight'] || keys['d']) dx += 1;
+      if (keys['ArrowUp'] || keys['w']) dy -= 1;
+      if (keys['ArrowDown'] || keys['s']) dy += 1;
+      if (dx !== 0 || dy !== 0) inputTest.moved = true;
+      const len = Math.hypot(dx, dy) || 1;
+      p.x = Math.max(20, Math.min(WIDTH - 20, p.x + (dx/len) * inputTest.player.speed));
+      p.y = Math.max(40, Math.min(HEIGHT - 40, p.y + (dy/len) * inputTest.player.speed));
+    }
+    function drawInputTest(){
+      ctx.fillStyle = '#1b2033';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      drawHUDBar();
+      ctx.fillStyle = '#fff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('Input Test: Move the dot with arrows/WASD or the controller.', 10, 20);
+      ctx.fillText('Press E / Space / Enter, or A / Start on controller to begin.', 10, 36);
+      const padConnected = !!(navigator.getGamepads && (navigator.getGamepads()[0] && navigator.getGamepads()[0].connected));
+      const status = `Moved: ${inputTest.moved ? '✓' : ' '}  |  Gamepad: ${padConnected ? 'Detected' : 'None'}  |  Touch: ${inputTest.touchSeen ? '✓' : ' '}`;
+      ctx.fillText(status, 10, 56);
+      ctx.fillStyle = '#74c0fc';
+      ctx.beginPath();
+      ctx.arc(inputTest.player.x, inputTest.player.y, inputTest.player.r, 0, Math.PI*2);
+      ctx.fill();
+      drawBottomBar();
+      ctx.fillStyle = '#fff';
+      ctx.fillText('This screen has no spoilers. Start when you’re ready.', 10, HEIGHT - 18);
+    }
+    function inputTestInteract(key){
+      if (key === ' ' || key === 'Enter' || (key && key.toLowerCase && key.toLowerCase() === 'e')) startFullGame();
+    }
+    function startFullGame(){
+      if (gameStarted) return;
+      gameStarted = true;
+      state = 'loading';
+      loadImages(SPRITES).then(()=>{
+        initLily();
+        state = 'lily';
+      }).catch(err=>{
+        console.error('Asset load error:', err);
+        initLily();
+        state = 'lily';
+      });
+    }
+    //#endregion
 
+    //#region Level: Lily
     const TILE_GRASS = 0, TILE_WATER = 1, TILE_LILYPAD = 2, TILE_LILY = 4, TILE_TARGET = 5, TILE_LILYWATER = 6;
-
     const LILY_OFFSET = { dx: 0, dy: 0 };
     const RAW_HEART_PADS = [
       '11,13','10,12','11,12','12,12',
@@ -371,7 +486,6 @@
         return `${x+dx},${y+dy}`;
       }));
     }
-
     const lily = {
       base: [], map: [],
       player: { x: 11, y: 13 },
@@ -380,7 +494,6 @@
       house: { x: 10, y: 2, w: 4, h: 4 },
       edit: { enabled:false, selected:null, hover:null, dragging:false }
     };
-
     const LILY_SAVE_KEY = 'va_lily_layout_v1';
     function currentLilyPositions(){
       const out = [];
@@ -414,38 +527,32 @@
       } catch(e){ return null; }
     }
     function clearLilyLayout(){ localStorage.removeItem(LILY_SAVE_KEY); }
-
     function lilyMouseToTile(e){
       const rect = canvas.getBoundingClientRect();
       const mx = (e.clientX - rect.left) / SCALE;
       const my = (e.clientY - rect.top) / SCALE;
       return { x: Math.floor(mx / TILE), y: Math.floor(my / TILE) };
     }
-
     function initLily() {
       lily.base = []; lily.map = [];
       for (let y = 0; y < ROWS; y++) {
         lily.base[y] = []; lily.map[y] = [];
         for (let x = 0; x < COLS; x++) { lily.base[y][x] = TILE_GRASS; lily.map[y][x] = TILE_GRASS; }
       }
-
       const heartPads = heartWithOffset(LILY_OFFSET.dx, LILY_OFFSET.dy);
       const pts = Array.from(heartPads).map(s => s.split(',').map(n => parseInt(n,10)));
       const minX = Math.min(...pts.map(p=>p[0])), maxX = Math.max(...pts.map(p=>p[0]));
       const minY = Math.min(...pts.map(p=>p[1])), maxY = Math.max(...pts.map(p=>p[1]));
-
       for (let y = Math.max(0, minY); y <= Math.min(ROWS-1, maxY); y++) {
         for (let x = Math.max(0, minX); x <= Math.min(COLS-1, maxX); x++) {
           lily.base[y][x] = TILE_WATER;
         }
       }
       for (const [x, y] of pts) if (x>=0 && x<COLS && y>=0 && y<ROWS) lily.base[y][x] = TILE_LILYPAD;
-
       const has = (x,y) => heartPads.has(`${x},${y}`);
       const innerTargets = pts.filter(([x,y]) => has(x-1,y) && has(x+1,y) && has(x,y-1) && has(x,y+1));
       lily.totalTargets = innerTargets.length; lily.liliesPlaced = 0; lily.liliesCollected = 0;
       for (const [x,y] of innerTargets) if (x>=0 && x<COLS && y>=0 && y<ROWS) lily.map[y][x] = TILE_TARGET;
-
       const wild = [];
       for (let x = minX - 3; x <= maxX + 3 && wild.length < lily.totalTargets; x += 2) {
         const yTop = Math.max(0, minY - 3), yBottom = Math.min(ROWS-1, maxY + 3);
@@ -458,19 +565,14 @@
         if (wild.length < lily.totalTargets && lily.base[y]?.[xRight] === TILE_GRASS) wild.push([xRight, y]);
       }
       for (const [x,y] of wild) if (x>=0 && x<COLS && y>=0 && y<ROWS) lily.map[y][x] = TILE_LILY;
-
       const saved = loadLilyLayout();
       if (saved) applyLilyLayout(saved);
-
       lily.player.x = 11 + LILY_OFFSET.dx;
       lily.player.y = 13 + LILY_OFFSET.dy;
-
       lily.bird.spawned = false; lily.bird.talking = false;
       lily.edit.selected = null; lily.edit.hover = null; lily.edit.dragging = false;
-
       ensureLilyEditorBindings();
     }
-
     function lilyInsideBounds(nx, ny) { return nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS; }
     function lilyIsWalkable(tile) {
       return tile === TILE_GRASS || tile === TILE_LILYPAD || tile === TILE_LILY || tile === TILE_TARGET || tile === TILE_LILYWATER;
@@ -480,19 +582,15 @@
       const dx = Math.abs(lily.player.x - lily.bird.x), dy = Math.abs(lily.player.y - lily.bird.y);
       return dx + dy === 1;
     }
-
     function lilyInteract() {
       if (lily.edit.enabled) return;
-
       const x = lily.player.x, y = lily.player.y, tile = lily.map[y][x];
-
       if (lily.bird.spawned && lilyIsAdjacentToBird()) {
         if (!lily.bird.talking) lily.bird.talking = true;
         else { lily.bird.talking = false; startJungleLevel(); }
         return;
       }
       if (lily.bird.talking) { lily.bird.talking = false; return; }
-
       if (tile === TILE_LILY || tile === TILE_LILYWATER) {
         lily.liliesCollected++; lily.map[y][x] = TILE_GRASS;
       }
@@ -501,14 +599,12 @@
         const base = lily.base[y][x];
         lily.map[y][x] = (base === TILE_WATER || base === TILE_LILYPAD) ? TILE_LILYWATER : TILE_LILY;
       }
-
       if (!lily.bird.spawned && lily.liliesPlaced === lily.totalTargets) {
         lily.bird.spawned = true;
         lily.bird.x = 12 + LILY_OFFSET.dx;
         lily.bird.y = 7 + LILY_OFFSET.dy;
       }
     }
-
     function canPickLilyAt(x,y){
       if (!lilyInsideBounds(x,y)) return false;
       const t = lily.map[y][x];
@@ -527,11 +623,9 @@
       saveLilyLayout();
       return true;
     }
-
     let lilyEditorBound = false;
     function ensureLilyEditorBindings(){
       if (lilyEditorBound) return;
-
       canvas.addEventListener('mousedown', e=>{
         if(state!=='lily' || !lily.edit.enabled) return;
         const {x,y} = lilyMouseToTile(e);
@@ -559,7 +653,6 @@
       canvas.addEventListener('contextmenu', e=>{
         if(state==='lily' && lily.edit.enabled){ e.preventDefault(); lily.edit.selected = null; lily.edit.dragging = false; }
       });
-
       window.addEventListener('keydown', e=>{
         if(state!=='lily') return;
         if(e.key==='F4'){ lily.edit.enabled = !lily.edit.enabled; lily.edit.selected=null; lily.edit.dragging=false; }
@@ -568,17 +661,13 @@
         if(e.key==='F5'){ saveLilyLayout(); }
         if(e.key==='F6'){ clearLilyLayout(); initLily(); }
       });
-
       window.exportLilies = () => JSON.stringify(currentLilyPositions());
       window.importLilies = (json) => { try { applyLilyLayout(JSON.parse(json)); saveLilyLayout(); } catch(e){ console.error('Bad JSON', e); } };
       window.clearLilyLayout = () => { clearLilyLayout(); initLily(); };
       window.moveLilies = (dx,dy)=>{ LILY_OFFSET.dx+=dx; LILY_OFFSET.dy+=dy; initLily(); };
-
       lilyEditorBound = true;
     }
-
-    function updateLily() { /* grid-based; no per-frame logic needed */ }
-
+    function updateLily() { /* grid-based */ }
     function drawLily() {
       for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
         const b = lily.base[y][x];
@@ -592,15 +681,12 @@
         else if (t === TILE_LILY) drawSprite('flower_lily', x*TILE, y*TILE, TILE, TILE);
         else if (t === TILE_LILYWATER) drawSprite('flower_lilywater', x*TILE, y*TILE, TILE, TILE);
       }
-
       const h = lily.house; drawSprite('house_small', h.x*TILE, h.y*TILE, h.w*TILE, h.h*TILE);
       drawSprite('player_topdown', lily.player.x*TILE, lily.player.y*TILE, TILE, TILE);
       if (lily.bird.spawned) drawSprite('angry_bird', lily.bird.x*TILE, lily.bird.y*TILE, TILE, TILE);
-
       drawHUDBar(); ctx.fillStyle = '#fff'; ctx.font = '14px sans-serif';
       ctx.fillText('Move: WASD / arrows | Interact: E / Space / Enter', 10, 18);
-      ctx.fillText(`Lilies in bag: ${lily.liliesCollected} | Spots filled: ${lily.liliesPlaced}/${lily.totalTargets}`, 10, 36);
-
+      ctx.fillText('Lilies in bag: ' + lily.liliesCollected + ' | Spots filled: ' + lily.liliesPlaced + '/' + lily.totalTargets, 10, 36);
       if (lily.edit.enabled){
         ctx.fillStyle = '#000000aa';
         ctx.fillRect(0, HEIGHT-70, WIDTH, 30);
@@ -701,7 +787,7 @@
     }
     //#endregion
 
-    //#region Level: House2 (feeding), Hub, and Mini-games
+    //#region Level: House2, Hub, and Mini-games
     const FLOOR_TOP = HEIGHT - 220;
     const house2 = {
       player: { x: 0, y: 0, w: 0, h: 0 },
@@ -769,7 +855,6 @@
         if (key === ' ' || key === 'Enter' || key.toLowerCase() === 'e') { initHouse3Dock(); state = "house3"; }
       }
     }
-
     const hub2 = { player: { x: 0, y: 0, w: 0, h: 0 }, tacosDone: false, sushiDone: false, dessertDone: false };
     function initHub2() { const ps = getSpriteSize('player_side'); hub2.player = { x: WIDTH/2, y: HEIGHT - 120, w: ps.w, h: ps.h }; }
     function drawHub2() {
@@ -782,7 +867,7 @@
       debugDrawBox(getPlayerBoxBottom(hub2.player), hub2.player.x, hub2.player.y);
       drawHUDBar(); ctx.fillStyle = '#fff'; ctx.font = '14px sans-serif';
       ctx.fillText('Hub: Walk to a food area and press E to enter. (F2 shows hitboxes)', 10, 20);
-      ctx.fillText(`Tacos: ${hub2.tacosDone?'✓':' '}, Sushi: ${hub2.sushiDone?'✓':' '}, Dessert: ${hub2.dessertDone?'✓':' '}`, 10, 38);
+      ctx.fillText('Tacos: ' + (hub2.tacosDone?'✓':' ') + ', Sushi: ' + (hub2.sushiDone?'✓':' ') + ', Dessert: ' + (hub2.dessertDone?'✓':' '), 10, 38);
       if (hub2.tacosDone && hub2.sushiDone && hub2.dessertDone) { drawBottomBar(); ctx.fillStyle = '#fff'; ctx.fillText('All foods collected! Walk back to the house and press E to feed Garfield.', 10, HEIGHT - 18); }
     }
     function moveHub2Player(dx, dy) { hub2.player.x = Math.max(20, Math.min(WIDTH - 40, hub2.player.x + dx*TILE)); hub2.player.y = Math.max(60, Math.min(HEIGHT - 40, hub2.player.y + dy*TILE)); }
@@ -807,7 +892,7 @@
       const t = Date.now()/400;
       const markerPos = tacoTown.barX + ((Math.sin(t)+1)/2)*tacoTown.barW;
       drawSprite('cook_marker', markerPos - marker.w/2, tacoTown.barY - (marker.h - barH)/2, marker.w, marker.h);
-      drawBottomPanelText(['Taco Town: Press E when the marker is in the green zone to cook tacos.', `Tacos cooked: ${tacoTown.progress} / 3`]);
+      drawBottomPanelText(['Taco Town: Press E when the marker is in the green zone to cook tacos.', 'Tacos cooked: ' + tacoTown.progress + ' / 3']);
       tacoTown.goodStart = gX; tacoTown.goodEnd = gX + gW;
     }
     function tacoInteract(key) {
@@ -853,7 +938,7 @@
       ctx.fillStyle='#fff'; ctx.font='14px sans-serif';
       const status = dessertDunes.complete?'Perfect! Press E to return.':'Dessert Dunes: Press 1 bottom, 2 middle, 3 top (in order).';
       ctx.fillText(status,10,HEIGHT-50);
-      if(!dessertDunes.complete) ctx.fillText(`Current: ${dessertDunes.currentOrder.join(' > ')}`, 10, HEIGHT-28);
+      if(!dessertDunes.complete) ctx.fillText('Current: ' + dessertDunes.currentOrder.join(' > '), 10, HEIGHT-28);
       const plate = getSpriteSize('cake_plate'), plateX = WIDTH/2 - plate.w/2, plateY = HEIGHT/2 + 40;
       drawSprite('cake_plate', plateX, plateY, plate.w, plate.h);
       let curY = plateY - 2;
@@ -868,6 +953,7 @@
       if(key==='1') dessertDunes.currentOrder.push('bottom'); else if(key==='2') dessertDunes.currentOrder.push('middle'); else if(key==='3') dessertDunes.currentOrder.push('top');
       if(dessertDunes.currentOrder.length===3){ if(dessertDunes.currentOrder.join(',')===dessertDunes.correctOrder.join(',')) dessertDunes.complete=true; else dessertDunes.currentOrder=[]; }
     }
+
     function initFeedingScene(){ house2.phase='feeding'; house2.garfield.present=true; house2.feedingStep=0; }
     function drawFeedingOverlay(){
       let text=''; if(house2.phase==='feeding'||house2.phase==='feeding_end'){
@@ -936,31 +1022,24 @@
       const rockSz  = getSpriteSize('undersea_rock');
       const subSz   = getSpriteSize('submarine');
       const margin = 28, seabedOffset = -8;
-
       const subX = margin, subY = undersea.seabedY - subSz.h + seabedOffset;
       undersea.exitSub = { x: subX, y: subY, w: subSz.w, h: subSz.h };
-
       const caveX = WIDTH - caveSz.w - margin, caveY = undersea.seabedY - caveSz.h + seabedOffset;
       undersea.caveEntrance = { x: caveX, y: caveY, w: caveSz.w, h: caveSz.h };
-
       let shackX = Math.round(WIDTH * 0.60) - Math.round(shackSz.w / 2);
       shackX = Math.max(subX + subSz.w + 80, Math.min(caveX - shackSz.w - 80, shackX));
       const shackY = undersea.seabedY - shackSz.h + seabedOffset;
       undersea.grillArea = { x: shackX, y: shackY+40, w: shackSz.w, h: shackSz.h };
-
       undersea.bayLeft  = undersea.exitSub.x + undersea.exitSub.w + 40;
       undersea.bayRight = undersea.grillArea.x - 40;
-
       const rock1 = { x: undersea.bayLeft + 20, y: undersea.seabedY - rockSz.h + seabedOffset, w: rockSz.w, h: rockSz.h };
       const rock2X = Math.min(undersea.bayRight - rockSz.w - 20, undersea.bayLeft + 120);
       const rock2 = { x: rock2X, y: undersea.seabedY - rockSz.h + seabedOffset - 6, w: rockSz.w, h: rockSz.h };
       undersea.obstacles = [rock1, rock2];
-
       undersea.jellyfish = [];
       const jfCount = 6;
       const span = Math.max(80, undersea.bayRight - undersea.bayLeft - 60);
       const baseBottom = undersea.seabedY - 80;
-
       for (let i = 0; i < jfCount; i++) {
         const ox = undersea.bayLeft + 30 + i * (span / (jfCount - 1));
         const oy = baseBottom - (i % 2) * 40;
@@ -976,7 +1055,6 @@
           drift: (Math.random() * 2 - 1) * 0.25
         });
       }
-
       const pk = getSpriteSize('pickle');
       undersea.pickles = [
         { x: undersea.caveEntrance.x + 14,                                   y: undersea.caveEntrance.y - 26, w: pk.w, h: pk.h, taken:false },
@@ -1023,14 +1101,12 @@
       if (keys['ArrowUp'] || keys['w'] || keys[' ']) p.vy += undersea.swimForce;
       p.vy += undersea.gravity;
       p.x += p.vx; p.y += p.vy;
-
       const topY = 60;
       if (p.x - p.w/2 < 0) p.x = p.w/2;
       if (p.x + p.w/2 > WIDTH) p.x = WIDTH - p.w/2;
       if (p.y - p.h < topY) { p.y = topY + p.h; p.vy = 0; }
       if (p.y > undersea.seabedY) { p.y = undersea.seabedY; p.vy = 0; }
       resolveAgainstObstaclesIfEnabled(p);
-
       const t = performance.now() * 0.001;
       for (const j of undersea.jellyfish) {
         if (j.caught) continue;
@@ -1040,7 +1116,6 @@
         j.x = j.ox + j.ampX * Math.sin(2 * Math.PI * j.freqX * t + j.phase);
         j.y = j.oy + j.ampY * Math.sin(2 * Math.PI * j.freqY * t + j.phase + Math.PI / 2);
       }
-
       for (const pk of undersea.pickles) {
         if (!pk.taken) {
           const pb = getPlayerBoxBottom(p);
@@ -1056,19 +1131,17 @@
       drawSprite('grill_shack',    undersea.grillArea.x,    undersea.grillArea.y,    undersea.grillArea.w,    undersea.grillArea.h);
       drawSprite('cave_entrance',  undersea.caveEntrance.x, undersea.caveEntrance.y, undersea.caveEntrance.w, undersea.caveEntrance.h);
       drawSprite('submarine',      undersea.exitSub.x,      undersea.exitSub.y,      undersea.exitSub.w,      undersea.exitSub.h);
-
       for (const j of undersea.jellyfish) {
         if (j.caught) continue;
         const s = getSpriteSize('jellyfish');
         drawSprite('jellyfish', Math.round(j.x - s.w/2), Math.round(j.y - s.h/2), s.w, s.h);
       }
       for (const pk of undersea.pickles) if (!pk.taken) drawSprite('pickle', pk.x, pk.y, pk.w, pk.h);
-
       drawSpriteAuto('player_side', undersea.player.x, undersea.player.y, {anchor:'bottom'});
       debugDrawBox(getPlayerBoxBottom(undersea.player), undersea.player.x, undersea.player.y);
       drawHUDBar(); ctx.fillStyle = '#fff'; ctx.font = '14px sans-serif';
       ctx.fillText('Undersea: A/D to swim, W/Up/Space to swim up. E to interact / net. (F2 shows hitboxes)', 10, 20);
-      ctx.fillText(`Jelly: ${undersea.jellyCollected}/5  | Pickles: ${undersea.picklesCollected}/3  | Burger parts: ${undersea.bunsPattyCollected ? 'OK' : 'Missing'}`, 10, 38);
+      ctx.fillText('Jelly: ' + undersea.jellyCollected + '/5  | Pickles: ' + undersea.picklesCollected + '/3  | Burger parts: ' + (undersea.bunsPattyCollected ? 'OK' : 'Missing'), 10, 38);
       const pb = getPlayerBoxBottom(undersea.player);
       if (rectsOverlap(pb, undersea.grillArea)) drawLowerHint('Press E to try assembling the Legendary Burger.');
       drawBottomBar(); ctx.fillStyle = '#fff';
@@ -1104,12 +1177,10 @@
     }
     //#endregion
 
-    //#region Level: Ship Build + Launch (pad hidden; pad-relative targets)
+    //#region Level: Ship Build + Launch
     function lerp(a,b,t){ return a + (b - a) * t; }
     function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
-
-    const SHOW_ASSEMBLY_PAD = false; // pad overlay disabled
-
+    const SHOW_ASSEMBLY_PAD = false;
     const shipBuild = {
       player:{x:0,y:0,w:0,h:0},
       pad:{ x: WIDTH - 360, y: HEIGHT - 180, w: 180, h: 70 },
@@ -1120,14 +1191,12 @@
         jellyFuel: { spr:'ship_part_jelly_fuel',have:false, offX:0, offY:0, scale:1.00, x:0,y:0,s:1, anim:false, t:0, fromX:0,fromY:0,fromS:0.7 }
       }
     };
-
     function recalcPartTargetsFromPad(){
       for (const p of Object.values(shipBuild.parts)){
         p.toX = shipBuild.pad.x + (p.offX || 0);
         p.toY = shipBuild.pad.y + (p.offY || 0);
       }
     }
-
     function initShipBuild(){
       const ps=getSpriteSize('player_side');
       shipBuild.player={x:WIDTH/2, y:HEIGHT-120, w:ps.w, h:ps.h};
@@ -1162,9 +1231,7 @@
       drawSprite('lab',WIDTH-200,HEIGHT-240,80,80);
       drawSprite('trash_can',200,HEIGHT-200,24,40);
       drawSprite('canopy_room', WIDTH/2 - 60, HEIGHT-230, 60, 50);
-
       const ready = allShipPartsHave();
-
       if (!ready){
         for (const [key,p] of Object.entries(shipBuild.parts)){
           if (!p.have) continue;
@@ -1175,14 +1242,12 @@
       } else {
         drawSprite('spaceship_blue', shipBuild.pad.x, shipBuild.pad.y, shipBuild.pad.w, shipBuild.pad.h);
       }
-
       drawSpriteAuto('player_side', shipBuild.player.x, shipBuild.player.y, {anchor:'bottom'});
       debugDrawBox(getPlayerBoxBottom(shipBuild.player), shipBuild.player.x, shipBuild.player.y);
-
       const {fuselage, jellyFuel, wrapper, canopy} = shipBuild.parts;
       drawHUDBar(); ctx.fillStyle='#fff'; ctx.font='14px sans-serif';
       ctx.fillText('Shipyard: Collect parts and assemble the blue spaceship. E to interact. (F2 shows hitboxes)', 10, 20);
-      ctx.fillText(`Fuselage: ${fuselage.have?'✓':' '}  Jelly Fuel: ${jellyFuel.have?'✓':' '}  Wrapper: ${wrapper.have?'✓':' '}  Canopy: ${canopy.have?'✓':' '}`, 10, 38);
+      ctx.fillText('Fuselage: ' + (fuselage.have?'✓':' ') + '  Jelly Fuel: ' + (jellyFuel.have?'✓':' ') + '  Wrapper: ' + (wrapper.have?'✓':' ') + '  Canopy: ' + (canopy.have?'✓':' '), 10, 38);
     }
     function shipBuildInteract(key){
       if(!(key===' '||key==='Enter'||key.toLowerCase()==='e')) return;
@@ -1226,14 +1291,13 @@
     }
     //#endregion
 
-    //#region Level: Moon Boss + Wish Scene (2× wish sizes + music)
+    //#region Level: Moon Boss + Wish Scene
     function drawToHeight(name, centerX, feetY, targetH){
       const img = IMAGES[name]; if (!img) return;
       const aspect = (img.naturalWidth / img.naturalHeight) || 1;
       const w = Math.round(targetH * aspect), h = Math.round(targetH);
       ctx.drawImage(img, Math.round(centerX - w/2), Math.round(feetY - h), w, h);
     }
-
     const moon={ substate:'stage1', lastSubstate:'stage1',
       player1:{x:WIDTH/2-12,y:HEIGHT-40,w:24,h:24,speed:3,hp:3},
       dragon1:{x:WIDTH/2-80,y:40,w:160,h:60,hp:12,maxHp:12,phase:'rain',phaseTimer:0,hitFlash:0},
@@ -1260,14 +1324,13 @@
     function updateMoonBoss(){ if(moon.substate==='stage1') updateMoonStage1(); else if(moon.substate==='stage2') updateMoonStage2(); }
     function drawMoonBoss(){ if(moon.substate==='stage1') drawMoonStage1(); else if(moon.substate==='stage2') drawMoonStage2(); else if(moon.substate==='lose'){ if(moon.lastSubstate==='stage1') drawMoonStage1(); else drawMoonStage2(); drawCenteredBanner('You were defeated. Press R to retry.'); } }
     function moonBossInteract(key){ if(key==='r'||key==='R') initMoonBoss(); }
-
     function updateMoonStage1(){
       let dx=0; if(keys['ArrowLeft']||keys['a']) dx-=1; if(keys['ArrowRight']||keys['d']) dx+=1;
       moon.player1.x += dx*moon.player1.speed;
       if(moon.player1.x<20) moon.player1.x=20;
       if(moon.player1.x+moon.player1.w>WIDTH-20) moon.player1.x=WIDTH-20-moon.player1.w;
       if(moon.shotCooldown>0) moon.shotCooldown--;
-      if((keys['k']||keys['K']||keys[' ']) && moon.shotCooldown===0 && !moon.stage1Done){
+      if((keys['k']||keys['K']||keys[' ']||keys['e']||keys['E']) && moon.shotCooldown===0 && !moon.stage1Done){
         moon.bullets.push({x:moon.player1.x+moon.player1.w/2-3,y:moon.player1.y,w:6,h:10,vy:-4}); moon.shotCooldown=25; SFX.shoot();
       }
       for(let i=moon.bullets.length-1;i>=0;i--){ moon.bullets[i].y+=moon.bullets[i].vy; if(moon.bullets[i].y + moon.bullets[i].h < 0) moon.bullets.splice(i,1); }
@@ -1331,11 +1394,10 @@
       drawSprite('player_side', moon.player1.x, moon.player1.y, moon.player1.w, moon.player1.h);
       for(const b of moon.bullets) drawSprite('heart_bullet', b.x, b.y, b.w, b.h);
       drawHUDBar(); ctx.fillStyle='#fff'; ctx.font='14px sans-serif';
-      ctx.fillText('Stage 1: Move A/D or arrows | Shoot K or Space | Avoid fireballs.',10,20);
-      ctx.fillText(`HP: ${moon.player1.hp}`,10,36);
+      ctx.fillText('Stage 1: Move A/D or arrows | Shoot K or Space or E | Avoid fireballs.',10,20);
+      ctx.fillText('HP: ' + moon.player1.hp, 10, 36);
       ctx.fillText('Dragon (Stage 1)', WIDTH-200,20); drawHPBar(WIDTH-200,26,140,moon.dragon1.hp,moon.dragon1.maxHp);
     }
-
     function updateMoonStage2(){
       const p=moon.player2, d=moon.dragon2;
       p.vx=0; if(keys['ArrowLeft']||keys['a']) p.vx=-p.speed; if(keys['ArrowRight']||keys['d']) p.vx=p.speed;
@@ -1343,7 +1405,7 @@
       p.vy+=0.3; p.y+=p.vy; if(p.y+p.h>HEIGHT-40){p.y=HEIGHT-40-p.h;p.vy=0;p.onGround=true;} else p.onGround=false;
       if((keys['w']||keys['ArrowUp']||keys[' '])&&p.onGround){ p.vy=-5; p.onGround=false; }
       if(moon.punchCooldown>0) moon.punchCooldown--;
-      if((keys['j']||keys['J'])&&moon.punchCooldown===0){
+      if((keys['j']||keys['J']||keys['e']||keys['E']||keys[' ']) && moon.punchCooldown === 0){
         moon.punchCooldown=20; const punchBox={x:p.x+p.w,y:p.y,w:20,h:p.h}, dBox={x:d.x,y:d.y,w:d.w,h:d.h};
         if(rectsOverlap(punchBox,dBox)){ d.hp=Math.max(0,d.hp-1); d.hitFlash=6; SFX.punch(); shake(6,12); }
       }
@@ -1378,37 +1440,33 @@
         drawSprite('swipe_arc', moon.dragon2.x - 42, moon.dragon2.y, 48, moon.dragon2.h);
       }
       drawHUDBar(); ctx.fillStyle='#fff'; ctx.font='14px sans-serif';
-      ctx.fillText('Stage 2: Move A/D or arrows | Jump W/Up/Space | Punch J up close.',10,20);
-      ctx.fillText(`HP: ${moon.player2.hp}`,10,36);
+      ctx.fillText('Stage 2: Move A/D or arrows | Jump W/Up/Space | Punch J or E or Space.',10,20);
+      ctx.fillText('HP: ' + moon.player2.hp, 10, 36);
       ctx.fillText('Dragon (Stage 2)', WIDTH-200,20); drawHPBar(WIDTH-200,26,140,moon.dragon2.hp,moon.dragon2.maxHp);
     }
 
     function initWishScene(){
       house2.phase='post_burger';
       house2.feedingStep=0;
-      BGM.playWish(800); // fade-in romantic track for the wish scene
+      BGM.playWish(800);
     }
     function drawWishScene(){
       drawSprite('wish_room_bg',0,0,WIDTH,HEIGHT);
-
       const k = getSpriteSize('garfield_kitten');
       const kittenH = k.h;
       const actorH = Math.round(kittenH * 2);
       const feetY = HEIGHT - 128;
       const leftX = WIDTH/2 - 40;
       const rightX = WIDTH/2 + 40;
-
       if (house2.feedingStep <= 2){
         drawSprite('garfield_kitten', Math.round(leftX - k.w/2), Math.round(feetY - k.h), k.w, k.h);
       } else {
         drawToHeight('garfield_prince', leftX, feetY, actorH);
       }
       drawToHeight('player_topdown', rightX, feetY, actorH);
-
       drawSprite('wish_star', WIDTH/2 - 11, HEIGHT - 260, 24, 24);
       drawSprite('floating_heart', WIDTH/2 - 45, HEIGHT - 250, 10, 10);
       drawSprite('floating_heart', WIDTH/2 + 35, HEIGHT - 250, 10, 10);
-
       let text='';
       if(house2.feedingStep===0) text='A soft light fills the room. Garfield looks at you with bright eyes.';
       else if(house2.feedingStep===1) text='The Wish Star glimmers overhead, drawn by the collar\'s glow.';
@@ -1435,6 +1493,13 @@
         ek.key === ' ' || ek.key === 'Enter' ||
         (ek.key && ek.key.toLowerCase && ek.key.toLowerCase() === 'e')
       )(e);
+
+      // Input test gate
+      if (state === 'input_test') {
+        if (isInteractKey) inputTestInteract(e.key);
+        return;
+      }
+
       if (state === "lily") {
         if (isInteractKey) { lilyInteract(); return; }
         let dx = 0, dy = 0;
@@ -1511,8 +1576,122 @@
         jungleJumpHeld = false;
       }
     });
+
+    // Mobile touch controls: map overlay buttons to key events
+    function press(key) {
+      if (state === 'input_test') inputTest.touchSeen = true;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key }));
+    }
+    function release(key) { window.dispatchEvent(new KeyboardEvent('keyup', { key })); }
+    const keyMap = { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', e: 'e' };
+    document.querySelectorAll('button.ctrl').forEach(btn => {
+      const mapped = keyMap[btn.dataset.k];
+      btn.addEventListener('touchstart', e => { e.preventDefault(); press(mapped); });
+      btn.addEventListener('touchend',   e => { e.preventDefault(); release(mapped); });
+      btn.addEventListener('touchcancel',e => { e.preventDefault(); release(mapped); });
+      btn.addEventListener('mousedown', e => { e.preventDefault(); press(mapped); });
+      btn.addEventListener('mouseup',   e => { e.preventDefault(); release(mapped); });
+      btn.addEventListener('mouseleave',e => { e.preventDefault(); release(mapped); });
+    });
+
+    // Xbox/standard Gamepad → Keyboard bridge
+    const GP_CFG = { deadzone: 0.25, repeatDelay: 260, repeatRate: 120 };
+    const gpState = {
+      have: false,
+      prevButtons: [],
+      axisHeld: { ArrowLeft:false, ArrowRight:false, ArrowUp:false, ArrowDown:false },
+      repeatNext: { ArrowLeft:0, ArrowRight:0, ArrowUp:0, ArrowDown:0 }
+    };
+    function kDown(k){ window.dispatchEvent(new KeyboardEvent('keydown',{ key:k })); }
+    function kUp(k){ window.dispatchEvent(new KeyboardEvent('keyup',{ key:k })); }
+    function dz(v){ const a = Math.abs(v||0); return a < GP_CFG.deadzone ? 0 : (v > 0 ? (a - GP_CFG.deadzone)/(1 - GP_CFG.deadzone) : -(a - GP_CFG.deadzone)/(1 - GP_CFG.deadzone)); }
+    function setArrow(arrow, isDown, now){
+      const held = gpState.axisHeld[arrow];
+      if (isDown && !held){
+        gpState.axisHeld[arrow] = true;
+        kDown(arrow);
+        gpState.repeatNext[arrow] = now + GP_CFG.repeatDelay;
+      } else if (!isDown && held){
+        gpState.axisHeld[arrow] = false;
+        kUp(arrow);
+      }
+    }
+    function maybeRepeatArrows(now){
+      for (const arrow of ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown']){
+        if (!gpState.axisHeld[arrow]) continue;
+        if (now >= gpState.repeatNext[arrow]){
+          kUp(arrow);
+          kDown(arrow);
+          gpState.repeatNext[arrow] = now + GP_CFG.repeatRate;
+        }
+      }
+    }
+    function handleButtons(gp){
+      const map = [
+        { idx: 0, key: ' ' },       // A → Space
+        { idx: 1, key: 'e' },       // B → E
+        { idx: 5, key: 'j' },       // RB → J (punch)
+        { idx: 9, key: 'Enter' }    // Start → Enter
+      ];
+      const dpad = [
+        { idx: 14, key: 'ArrowLeft' },
+        { idx: 15, key: 'ArrowRight' },
+        { idx: 12, key: 'ArrowUp' },
+        { idx: 13, key: 'ArrowDown' }
+      ];
+      for (const {idx, key} of [...map, ...dpad]){
+        const pressed = !!(gp.buttons[idx] && gp.buttons[idx].pressed);
+        const prev = gpState.prevButtons[idx] || false;
+        if (pressed && !prev) {
+          if (state === 'input_test') inputTest.gamepadSeen = true;
+          kDown(key);
+        } else if (!pressed && prev) {
+          kUp(key);
+        }
+        gpState.prevButtons[idx] = pressed;
+      }
+    }
+    function handleAxes(gp, now){
+      const axX = dz(gp.axes[0]);
+      const axY = dz(gp.axes[1]);
+      const left  = axX < -0.5;
+      const right = axX >  0.5;
+      const up    = axY < -0.5;
+      const down  = axY >  0.5;
+      setArrow('ArrowLeft', left, now);
+      setArrow('ArrowRight', right, now);
+      setArrow('ArrowUp', up, now);
+      setArrow('ArrowDown', down, now);
+      maybeRepeatArrows(now);
+    }
+    function pollGamepad(){
+      const list = navigator.getGamepads ? navigator.getGamepads() : [];
+      const gp = list && list[0];
+      const now = performance.now();
+      if (gp && gp.connected){
+        if (!gpState.have) gpState.have = true;
+        handleButtons(gp);
+        handleAxes(gp, now);
+      } else {
+        if (gpState.have){
+          for (const idx in gpState.prevButtons){
+            if (gpState.prevButtons[idx]) gpState.prevButtons[idx] = false;
+          }
+          for (const a of Object.keys(gpState.axisHeld)){
+            if (gpState.axisHeld[a]) { gpState.axisHeld[a] = false; kUp(a); }
+          }
+          gpState.have = false;
+        }
+      }
+      requestAnimationFrame(pollGamepad);
+    }
+    window.addEventListener('gamepadconnected', () => { gpState.have = true; });
+    window.addEventListener('gamepaddisconnected', () => { gpState.have = false; });
+    requestAnimationFrame(pollGamepad);
+
     function update(){
-      if(state==='lily') updateLily();
+      if(state==='input_test') updateInputTest();
+      else if(state==='lily') updateLily();
       else if(state==='jungle') updateJungle();
       else if(state==='house2') {/* dialog-driven */}
       else if(state==='undersea') updateUndersea();
@@ -1523,7 +1702,8 @@
     function draw(){
       ctx.clearRect(0, 0, WIDTH, HEIGHT);
       ctx.save(); applyShake();
-      if(state==='lily') drawLily();
+      if(state==='input_test') drawInputTest();
+      else if(state==='lily') drawLily();
       else if(state==='jungle') drawJungle();
       else if(state==='house2') drawHouse2();
       else if(state==='hub2') drawHub2();
@@ -1536,19 +1716,19 @@
       else if(state==='ship_launch') drawShipLaunch();
       else if(state==='moon_boss') drawMoonBoss();
       else if(state==='wish_scene') drawWishScene();
+      else if(state==='loading'){
+        ctx.fillStyle = '#111827';
+        ctx.fillRect(0,0,WIDTH,HEIGHT);
+        drawHUDBar();
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px sans-serif';
+        ctx.fillText('Loading…', 10, 22);
+      }
       ctx.restore();
     }
     function loop(){ update(); draw(); requestAnimationFrame(loop); }
-    loadImages(SPRITES).then(()=>{
-      const start = location.hash.slice(1);
-      if (LEVEL_INITS[start]) jumpTo(start);
-      else initLily();
-      requestAnimationFrame(loop);
-    }).catch(err=>{
-      console.error('Asset load error:', err);
-      initLily();
-      requestAnimationFrame(loop);
-    });
+    initInputTest();
+    requestAnimationFrame(loop);
     //#endregion
   </script>
 </body>
